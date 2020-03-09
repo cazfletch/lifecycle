@@ -57,7 +57,7 @@ async function main () {
 		let connectionOptions = {
 			identity: userName,
 			wallet: wallet,
-			discovery: {enabled: false}
+			discovery: {enabled: true, asLocalhost: true}
 		};
 
 		console.log('Connect to gateway.');

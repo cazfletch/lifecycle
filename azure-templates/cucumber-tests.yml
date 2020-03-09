@@ -1,0 +1,20 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+---
+parameters:
+  nodeVersion: '10.x'
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: ${{ parameters.nodeVersion }}
+    displayName: Use Node.js ${{ parameters.nodeVersion }}
+
+  - script: npm ci
+    displayName: Install dependencies
+
+  - script: cucumber/setup-tests.sh
+    displayName: setup cucumber tests
+
+  - script: npm run cucumber
+    displayName: Run cucumber tests
