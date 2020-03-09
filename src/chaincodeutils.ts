@@ -817,7 +817,7 @@ export namespace ChaincodeUtils {
 									validationPlugin: chaincodeDefinition.getValidationPlugin(),
 									endorsementPolicy: chaincodeDefinition.getValidationParameter(),
 									collectionConfig: chaincodeDefinition.getCollections().toBuffer(),
-								}
+								};
 								definitions.push(defined);
 							}
 						} else {

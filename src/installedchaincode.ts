@@ -29,6 +29,10 @@ export class InstalledChaincodeImpl implements Lifecycle.InstalledChaincode {
 	public async approve(options: Lifecycle.ApprovingOptions): Promise<Lifecycle.ApprovedChaincode> {
 		// use the utility to approve this installed package for this organization
 		// each organization must approve the package
+		if(!options.peerNames) {
+			options.peerNames = [];
+		}
+
 		await ChaincodeUtils.approvePackage(this, options);
 
 		// now build the object to return the results

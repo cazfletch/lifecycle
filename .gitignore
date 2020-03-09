@@ -2,3 +2,12 @@
 /.idea/
 *.d.ts
 *.js.map
+/cucumber/tmp/
+/usage.txt
+/lib/src/lifecycle.js
+/lib/cucumber/
+/lib/src/installedchaincode.js
+/lib/src/approvedchaincode.js
+/lib/src/chaincodepackage.js
+/lib/src/chaincodesource.js
+/lib/src/chaincodeutils.js
