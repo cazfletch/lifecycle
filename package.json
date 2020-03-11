@@ -11,7 +11,7 @@
         "pretest": "npm run lint",
         "test": "nyc mocha --recursive",
         "compile": "tsc --build tsconfig.json",
-        "cucumber": "rimraf lib/cucumber && npm run compile && ./node_modules/.bin/cucumber-js ./cucumber/features/ -p default"
+        "cucumber": "rimraf lib && npm run compile && ./node_modules/.bin/cucumber-js ./cucumber/features/ -p default"
     },
     "engineStrict": true,
     "author": "Hyperledger",
@@ -22,6 +22,7 @@
         "fabric-common": "unstable",
         "ignore-walk": "^3.0.0",
         "klaw": "^2.0.0",
+        "long": "^4.0.0",
         "tar-stream": "1.6.1"
     },
     "devDependencies": {
@@ -29,6 +30,7 @@
         "@types/chai-as-promised": "^7.1.2",
         "@types/cucumber": "^6.0.1",
         "@types/fs-extra": "^8.1.0",
+        "@types/long": "^4.0.1",
         "@types/mocha": "^7.0.2",
         "@types/sinon": "^7.5.2",
         "@types/sinon-chai": "^3.2.3",

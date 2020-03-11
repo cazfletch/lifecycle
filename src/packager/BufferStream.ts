@@ -6,9 +6,11 @@
 
 'use strict';
 
-const stream = require('stream');
+import * as stream from 'stream';
 
-class BufferStream extends stream.PassThrough {
+export class BufferStream extends stream.PassThrough {
+
+	private readonly buffers: any[] = [];
 
 	constructor() {
 		super();
@@ -23,5 +25,3 @@ class BufferStream extends stream.PassThrough {
 	}
 
 }
-
-module.exports = BufferStream;

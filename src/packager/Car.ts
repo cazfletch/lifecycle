@@ -14,16 +14,14 @@
 
 'use strict';
 
-const {Utils: utils} = require('fabric-common');
+import {Utils} from 'fabric-common';
 
-const logger = utils.getLogger('packager/Car.js');
+const logger = Utils.getLogger('packager/Car.js');
 const fs = require('fs-extra');
 
-class Car {
+export class CarPackager {
 	package(path) {
 		logger.debug(`Packaging CAR file from ${path}`);
 		return fs.readFileSync(path);
 	}
 }
-
-module.exports = Car;

@@ -14,37 +14,35 @@
 
 'use strict';
 
-const path = require('path');
-const {Utils: utils} = require('fabric-common');
+import {LifecyclePackager} from "./Lifecycle";
+import {BufferStream} from "./BufferStream";
+import * as path from 'path';
 
-const walk = require('ignore-walk');
+import {Utils} from 'fabric-common';
 
-const logger = utils.getLogger('packager/Node.js');
+import * as walk from 'ignore-walk';
 
-const BasePackager = require('./BasePackager');
-const BufferStream = require('./BufferStream');
+const logger = Utils.getLogger('packager/Node.js');
 
-class NodePackager extends BasePackager {
+export class NodePackager extends LifecyclePackager {
 
 	/**
 	 * Package chaincode source and metadata for deployment.
 	 * @param {string} chaincodePath The path to the top-level directory containing the source code
 	 * and package.json.
 	 * @param {string} [metadataPath] The path to the top-level directory containing metadata descriptors
-	 * @returns {Promise.<TResult>}
+	 * @returns {Promise<Buffer>}
 	 */
-	async package(chaincodePath, metadataPath) {
+	async package(chaincodePath, metadataPath): Promise<Buffer> {
 		logger.debug(`packaging Node from ${chaincodePath}`);
 
 		// Compose the path to the chaincode project directory
-		const projDir = chaincodePath;
-
 		// We generate the tar in two phases: First grab a list of descriptors,
 		// and then pack them into an archive.  While the two phases aren't
 		// strictly necessary yet, they pave the way for the future where we
 		// will need to assemble sources from multiple packages
 
-		const srcDescriptors = await this.findSource(projDir);
+		const srcDescriptors = await this.findSource(chaincodePath);
 		let descriptors = srcDescriptors;
 		if (metadataPath) {
 			const metaDescriptors = await super.findMetadataDescriptors(metadataPath);
@@ -71,7 +69,7 @@ class NodePackager extends BasePackager {
 			// follow symlink dirs
 			follow: true
 		});
-		const descriptors = [];
+		const descriptors: any[] = [];
 
 		if (!files) {
 			files = [];
@@ -93,5 +91,3 @@ class NodePackager extends BasePackager {
 		return descriptors;
 	}
 }
-
-module.exports = NodePackager;

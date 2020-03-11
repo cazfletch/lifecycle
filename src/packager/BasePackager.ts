@@ -15,23 +15,26 @@
 
 'use strict';
 
-const fs = require('fs-extra');
-const klaw = require('klaw');
-const tar = require('tar-stream');
-const path = require('path');
-const zlib = require('zlib');
-const {Utils: utils} = require('fabric-common');
+import * as fs from 'fs-extra';
+import * as klaw from 'klaw'
+import * as tar from 'tar-stream'
+import * as path from 'path';
+import * as zlib from 'zlib';
 
-const logger = utils.getLogger('packager/BasePackager.js');
+import {Utils} from 'fabric-common';
 
-const BasePackager = class {
+const logger = Utils.getLogger('packager/BasePackager.js');
+
+export abstract class BasePackager {
+
+	private keep: string[];
 
 	/**
 	 * Constructor
 	 *
 	 * @param {*} [keep] Array of valid source file extensions
 	 */
-	constructor(keep) {
+	constructor(keep?) {
 		if (this.constructor === BasePackager) {
 			// BasePackager can not be constructed.
 			throw new TypeError('Can not construct abstract class.');
@@ -53,9 +56,7 @@ const BasePackager = class {
 	 * @param {string} [goPath] Optional. Must be provided or environment "GOPATH" must be set
 	 *        when packaging goLang chaincode.
 	 */
-	async package (chaincodePath, metadataPath, goPath) {
-		throw new TypeError('Please implement method package from child class');
-	}
+	abstract async package (chaincodePath, metadataPath, goPath?): Promise<Buffer>
 
 	/**
 	 * Package the final chaincode package for installation on a
@@ -65,21 +66,18 @@ const BasePackager = class {
 	 * @param {string} chaincodeType The chaincode type
 	 * @param {Byte[]} packageBytes The chaincode package
 	 * @param {string} [chaincodePath] Optional. The chaincode path
-	 * @returns {Promise.<TResult>}
+	 * @returns {Promise<Buffer>}
 	 */
-	async finalPackage (chaincodeName, chaincodeVersion, chaincodeType, packageBytes, chaincodePath) {
-		throw new TypeError('Please implement method finalPackage from child class');
-	}
+	abstract async finalPackage (chaincodeName, chaincodeVersion, chaincodeType, packageBytes, chaincodePath);
 
 	/**
 	 * Given an input 'filePath', recursively parse the filesystem for any files
 	 * that fit the criteria for being valid chaincode source (ISREG + keep)
 	 *
+	 * @param baseFilepath
 	 * @param filepath
 	 */
-	findSource(filepath) {
-		throw new Error('abstract function called');
-	}
+	abstract findSource(baseFilepath: string, filepath?: string): Promise<any>
 
 	/**
 	 * Find the metadata descriptor files.
@@ -88,10 +86,10 @@ const BasePackager = class {
 	 * Only files with a ".json" extension will be included in the results.
 	 * @returns {Promise}
 	 */
-	findMetadataDescriptors(filePath) {
+	findMetadataDescriptors(filePath: string): Promise<{name: string, fqp: string}[]> {
 		return new Promise((resolve, reject) => {
 			logger.debug('findMetadataDescriptors : start');
-			const descriptors = [];
+			const descriptors: {name: string, fqp: string}[] = [];
 			klaw(filePath)
 				.on('data', (entry) => {
 					if (entry.stats.isFile() && this.isMetadata(entry.path)) {
@@ -191,7 +189,7 @@ const BasePackager = class {
 	_buildHeader(name, size) {
 		// Use a deterministic "zero-time" for all date fields
 		const zeroTime = new Date(0);
-		const header = {
+		return {
 			name: name,
 			size: size,
 			mode: 0o100644,
@@ -199,8 +197,6 @@ const BasePackager = class {
 			mtime: zeroTime,
 			ctime: zeroTime
 		};
-
-		return header;
 	}
 
 	/**
@@ -225,7 +221,7 @@ const BasePackager = class {
 			// Iterate through each descriptor in the order it was provided and resolve
 			// the entry asynchronously.  We will gather results below before
 			// finalizing the tarball
-			const tasks = [];
+			const tasks: any[] = [];
 			for (const desc of descriptors) {
 				let task;
 				if (desc.bytes) {
@@ -247,7 +243,4 @@ const BasePackager = class {
 			});
 		});
 	}
-
-};
-
-module.exports = BasePackager;
+}

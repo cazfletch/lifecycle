@@ -15,7 +15,7 @@ export class InstallHelper {
 
         const packagedChaincode: Lifecycle.PackagedChaincode = Lifecycle.newPackagedChaincode({packageFile: packageFile, chaincodeName: name, chaincodeVersion: version, label: name});
 
-        const result: Lifecycle.InstalledChaincode = await packagedChaincode.install({network: network, peerNames: [peerName], timeout: 40000});
+        const result: Lifecycle.InstalledChaincode = await packagedChaincode.install({network: network, peerNames: [peerName], timeout: 50000});
         return result.packageId;
     }
 
