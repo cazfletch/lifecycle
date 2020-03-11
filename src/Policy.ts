@@ -13,11 +13,10 @@
  */
 
 'use strict';
+import * as fabprotos from 'fabric-protos';
+import * as util from 'util';
 
-const fabprotos = require('fabric-protos');
-const util = require('util');
-
-const IDENTITY_TYPE = {
+export const IDENTITY_TYPE = {
 	Role: 'role',
 	OrganizationUnit: 'organization-unit',
 	Identity: 'identity'
@@ -55,7 +54,7 @@ const IDENTITY_TYPE = {
  * Governs the constructions of endorsement policies to be passed into the calls to instantiate chaincodes
  * @class
  */
-const EndorsementPolicy = class {
+export class EndorsementPolicy {
 	/**
 	 * Constructs an endorsement policy envelope. If the optional "policy" object is not present, a default
 	 * policy of "a signature by any member from any of the organizations corresponding to the array of member
@@ -68,12 +67,12 @@ const EndorsementPolicy = class {
 	 * @param {boolean} [returnProto] Optional. If the return value should be in bytes or protobuf.
 	 */
 	static buildPolicy(msps, policy, returnProto) {
-		const principals = [];
+		const principals: any[] = [];
 		const envelope = new fabprotos.common.SignaturePolicyEnvelope();
 		if (!policy) {
 			// no policy was passed in, construct a 'Signed By any member of an organization by mspid' policy
 			// construct a list of msp principals to select from using the 'n out of' operator
-			const signedBys = [];
+			const signedBys: any[] = [];
 			let index = 0;
 			for (const name in msps) {
 				if (Object.prototype.hasOwnProperty.call(msps, name)) {
@@ -135,9 +134,9 @@ const EndorsementPolicy = class {
 			return envelope.toBuffer();
 		}
 	}
-};
+}
 
-function buildPrincipal(identity) {
+export function buildPrincipal(identity) {
 	const principalType = getIdentityType(identity);
 	const newPrincipal = new fabprotos.common.MSPPrincipal();
 
@@ -170,7 +169,7 @@ function buildPrincipal(identity) {
 }
 
 function getIdentityType(obj) {
-	const invalidTypes = [];
+	const invalidTypes: any[] = [];
 	for (const key in obj) {
 		if (Object.prototype.hasOwnProperty.call(obj, key)) {
 			if (key === IDENTITY_TYPE.Role || key === IDENTITY_TYPE.OrganizationUnit || key === IDENTITY_TYPE.Identity) {
@@ -190,7 +189,7 @@ function getIdentityType(obj) {
 }
 
 function getPolicyType(spec) {
-	const invalidTypes = [];
+	const invalidTypes: any[] = [];
 	for (const key in spec) {
 		if (Object.prototype.hasOwnProperty.call(spec, key)) {
 			// each policy spec has exactly one property of one of these two forms: 'n-of' or 'signed-by'
@@ -212,13 +211,14 @@ function parsePolicy(spec) {
 		signedBy.set('signed_by', spec[type]);
 		return signedBy;
 	} else {
-		const n = type.match(/^(\d+)-of$/)[1];
+		const n: RegExpMatchArray = type.match(/^(\d+)-of$/) as RegExpMatchArray;
+
 		const array = spec[type];
 
 		const nOutOf = new fabprotos.common.SignaturePolicy.NOutOf();
-		nOutOf.setN(parseInt(n));
+		nOutOf.setN(parseInt(n[1]));
 
-		const subs = [];
+		const subs: any[] = [];
 		array.forEach((sub) => {
 			const subPolicy = parsePolicy(sub);
 			subs.push(subPolicy);
@@ -233,31 +233,30 @@ function parsePolicy(spec) {
 	}
 }
 
-function buildSignaturePolicy(spec) {
+export function buildSignaturePolicy(spec) {
 	const type = getPolicyType(spec);
 	if (type === 'signed-by') {
 		return {
 			signed_by: spec[type]
 		};
 	} else {
-		let n = type.match(/^(\d+)-of$/)[1];
-		n = parseInt(n);
-		const ruleArray = spec[type];
-		const rules = [];
+		const matches: RegExpMatchArray = type.match(/^(\d+)-of$/) as RegExpMatchArray;
+		const n: number = parseInt(matches[1]);
+		const ruleArray: any[] = spec[type];
+		const rules: any[] = [];
 		ruleArray.forEach(rule => {
 			rules.push(buildSignaturePolicy(rule));
 		});
-		const nOutOf = {
+		return {
 			n_out_of: {
 				n,
 				rules
 			}
 		};
-		return nOutOf;
 	}
 }
 
-function checkPolicy(policy) {
+export function checkPolicy(policy) {
 	if (!policy) {
 		throw new Error('Missing Required Param "policy"');
 	}
@@ -272,8 +271,3 @@ function checkPolicy(policy) {
 	}
 }
 
-module.exports = EndorsementPolicy;
-module.exports.IDENTITY_TYPE = IDENTITY_TYPE;
-module.exports.buildPrincipal = buildPrincipal;
-module.exports.buildSignaturePolicy = buildSignaturePolicy;
-module.exports.checkPolicy = checkPolicy;

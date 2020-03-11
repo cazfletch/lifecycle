@@ -6,13 +6,14 @@
 
 'use strict';
 
-const fabprotos = require('fabric-protos');
-const Packager = require('./Packager.js');
-const tar = require('tar-stream');
-const {Utils: utils} = require('fabric-common');
-const zlib = require('zlib');
+import * as fabprotos from 'fabric-protos';
+import * as Packager from './Packager';
+import * as tar from 'tar-stream';
 
-const logger = utils.getLogger('package');
+import {Utils} from 'fabric-common';
+import * as zlib from 'zlib';
+
+const logger = Utils.getLogger('package');
 
 const ccTypeMap = {};
 ccTypeMap[fabprotos.protos.ChaincodeSpec.Type.GOLANG] = 'golang';
@@ -30,7 +31,10 @@ const ccTranslateMap = {
 /**
  * A class representing a smart contract package.
  */
-class Package {
+export class Package {
+
+	private chaincodeDeploymentSpec;
+	private readonly fileNames: string[];
 
 	/**
 	 * Find the list of file names in the specified chaincode deployment specification.
@@ -43,7 +47,7 @@ class Package {
 		const gunzip = zlib.createGunzip();
 		const extract = tar.extract();
 		return new Promise((resolve) => {
-			const fileNames = [];
+			const fileNames: string[] = [];
 			extract.on('entry', (header, stream, next) => {
 				logger.debug('Package._findFileNames - found entry %s', header.name);
 				if (header.type === 'file') {
@@ -105,8 +109,9 @@ class Package {
 	static async fromDirectory({name, version, path, type, metadataPath, goPath}) {
 		logger.debug('Package.fromDirectory - entry - %s, %s, %s, %s', name, version, path, type);
 		Package._validateNameAndVersion(name, version);
-		const codePackage = await Packager.package(path, type, false, metadataPath, goPath);
-		logger.debug('Package.fromDirectory - code package is %s bytes', codePackage.length);
+		const codePackage: Buffer | null = await Packager.packageContract(path, type, false, metadataPath, goPath);
+
+		logger.debug('Package.fromDirectory - code package is %s bytes', codePackage ? codePackage.length: 0);
 		const fixedPath = path.split('\\').join('/'); // for windows style paths
 		const chaincodeSpec = {
 			type: translateCCType(type),
@@ -128,6 +133,7 @@ class Package {
 	 * Constructor.
 	 * @private
 	 * @param {ChaincodeDeploymentSpec} chaincodeDeploymentSpec The chaincode deployment specification.
+	 * @param fileNames
 	 */
 	constructor(chaincodeDeploymentSpec, fileNames) {
 		this.chaincodeDeploymentSpec = chaincodeDeploymentSpec;
@@ -178,9 +184,5 @@ class Package {
 
 function translateCCType(type) {
 	const chaincodeType = type ? type.toLowerCase() : 'golang';
-	const value = ccTranslateMap[chaincodeType];
-
-	return value;
-};
-
-module.exports = Package;
+	return ccTranslateMap[chaincodeType];
+}

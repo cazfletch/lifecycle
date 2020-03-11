@@ -14,14 +14,18 @@
 
 'use strict';
 
-const {Utils: utils} = require('fabric-common');
+import {Utils} from 'fabric-common';
+import {BasePackager} from './BasePackager';
+import {BufferStream} from './BufferStream';
 
-const logger = utils.getLogger('packager/Lifecycle.js');
+const logger = Utils.getLogger('packager/Lifecycle.js');
 
-const BasePackager = require('./BasePackager');
-const BufferStream = require('./BufferStream');
 
-class LifecyclePackager extends BasePackager {
+export abstract class LifecyclePackager extends BasePackager {
+
+    findSource(baseFilepath: string, filepath?: string | undefined): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
 	/**
 	 * Package the final chaincode package for installation on a
 	 * Hyperledger Fabric Peer using the v2 Lifecycle process.
@@ -29,9 +33,9 @@ class LifecyclePackager extends BasePackager {
 	 * @param {string} chaincodeType The chaincode type
 	 * @param {Byte[]} packageBytes The chaincode package
 	 * @param {string} chaincodePath Optional. The chaincode path path
-	 * @returns {Promise.<TResult>}
+	 * @returns {Promise<Buffer>}
 	 */
-	async finalPackage (label, chaincodeType, packageBytes, chaincodePath) {
+	async finalPackage (label, chaincodeType, packageBytes, chaincodePath?) {
 		const method = 'finalPackage';
 		logger.debug('%s - Start building final lifecycle package for label:%s path:%s type:%s',
 			method, label, chaincodePath, chaincodeType);
@@ -54,10 +58,11 @@ class LifecyclePackager extends BasePackager {
 
 	/**
 	 * Build a descriptor to describe an in memory JSON file entry
+	 * @param label
 	 * @param {string} type
 	 * @param {string} path
 	 */
-	buildMetaDataDescriptors(label, type, path) {
+	buildMetaDataDescriptors(label: string, type: string, path: string) {
 		if (!path) {
 			path = '';
 		}
@@ -66,7 +71,7 @@ class LifecyclePackager extends BasePackager {
 			path: path,
 			type: type
 		};
-		const descriptors = [];
+		const descriptors: any[] = [];
 		const metadataDescriptor = {
 			bytes: Buffer.from(JSON.stringify(metadata), 'utf8'),
 			name: 'metadata.json'
@@ -81,7 +86,7 @@ class LifecyclePackager extends BasePackager {
 	 * @param {byte[]} bytes that are assumed to be a chaincode package.
 	 */
 	buildPackageDescriptors(bytes) {
-		const descriptors = [];
+		const descriptors: any[] = [];
 		const packageDescriptor = {
 			bytes: bytes,
 			name: 'code.tar.gz'
@@ -90,7 +95,4 @@ class LifecyclePackager extends BasePackager {
 
 		return descriptors;
 	}
-
 }
-
-module.exports = LifecyclePackager;

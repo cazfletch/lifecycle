@@ -13,24 +13,22 @@
  */
 
 'use strict';
+import * as path from 'path';
+import {Utils} from 'fabric-common';
+import {LifecyclePackager} from "./Lifecycle";
 
-const path = require('path');
-const {Utils: utils} = require('fabric-common');
+import * as walk from 'ignore-walk';
+import {BufferStream} from './BufferStream';
 
-const walk = require('ignore-walk');
+const logger = Utils.getLogger('JavaPackager.js');
 
-const logger = utils.getLogger('JavaPackager.js');
-
-const BasePackager = require('./BasePackager');
-const BufferStream = require('./BufferStream');
-
-class JavaPackager extends BasePackager {
+export class JavaPackager extends LifecyclePackager {
 
 	/**
 	 * Package chaincode source and metadata files for deployment.
 	 * @param {string} chaincodePath The path to the top-level directory containing the source code.
 	 * @param {string} [metadataPath] The path to the top-level directory containing metadata descriptors
-	 * @returns {Promise.<byte[]>}
+	 * @returns {Promise<Buffer>}
 	 */
 	async package(chaincodePath, metadataPath) {
 		logger.debug(`packaging Java source from ${chaincodePath}`);
@@ -56,7 +54,7 @@ class JavaPackager extends BasePackager {
 	 * @returns {Promise}
 	 */
 	async findSource(filePath) {
-		const descriptors = [];
+		const descriptors: any[] = [];
 
 		const files = await walk({path: filePath, follow: true});
 		if (files) {
@@ -76,5 +74,3 @@ class JavaPackager extends BasePackager {
 		return descriptors;
 	}
 }
-
-module.exports = JavaPackager;

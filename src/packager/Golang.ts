@@ -13,17 +13,16 @@
  */
 'use strict';
 
-const fs = require('fs-extra');
-const klaw = require('klaw');
-const path = require('path');
-const {Utils: utils} = require('fabric-common');
+import * as fs from 'fs-extra';
+import * as klaw from 'klaw';
+import * as path from 'path';
+import { Utils} from 'fabric-common'
+import {BufferStream} from './BufferStream';
+import {LifecyclePackager} from "./Lifecycle";
 
-const BasePackager = require('./BasePackager');
-const BufferStream = require('./BufferStream');
+const logger = Utils.getLogger('packager/Golang.js');
 
-const logger = utils.getLogger('packager/Golang.js');
-
-class GolangPackager extends BasePackager {
+export class GolangPackager extends LifecyclePackager {
 
 	/**
 	 * Package chaincode source and metadata for deployment.
@@ -32,9 +31,9 @@ class GolangPackager extends BasePackager {
 	 * @param {string} [metadataPath[] Optional. The path to the top-level directory containing metadata descriptors.
 	 * @param {string} [goPath] Optional. The GOPATH setting used when building the chaincode. This will
 	 *        default to the environment setting "GOPATH".
-	 * @returns {Promise.<TResult>}
+	 * @returns {Promise<Buffer>}
 	 */
-	async package (chaincodePath, metadataPath, goPath) {
+	async package (chaincodePath, metadataPath, goPath): Promise<Buffer> {
 		// Determine the user's $GOPATH
 		let _goPath = goPath;
 		if (!_goPath) {
@@ -86,9 +85,9 @@ class GolangPackager extends BasePackager {
 	 * @param filePath
 	 * @returns {Promise}
 	 */
-	findSource(basePath, filePath) {
+	findSource(basePath: string, filePath: string): Promise<any> {
 		return new Promise((resolve, reject) => {
-			const descriptors = [];
+			const descriptors: any[] = [];
 			klaw(filePath)
 				.on('data', (entry) => {
 
@@ -113,5 +112,3 @@ class GolangPackager extends BasePackager {
 		});
 	}
 }
-
-module.exports = GolangPackager;
