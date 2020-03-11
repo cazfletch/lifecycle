@@ -32,7 +32,7 @@ export class ChaincodeSourceImpl implements Lifecycle.ChaincodeSource {
 			chaincodeVersion: this.chaincodeVersion,
 			packageFile: packageFile,
 			label: options.label
-		}
+		};
 
 		return Lifecycle.newPackagedChaincode(packagedAttribuites);
 	}
@@ -44,7 +44,7 @@ export class ChaincodeSourceImpl implements Lifecycle.ChaincodeSource {
 			chaincodeVersion: this.chaincodeVersion,
 			packageFile: Buffer.from('asdf'),
 			label: 'fixme'
-		}
+		};
 
 		return Lifecycle.newPackagedChaincode(packagedAttribuites);
 	}

@@ -10,7 +10,8 @@
         "lint": "eslint .",
         "pretest": "npm run lint",
         "test": "nyc mocha --recursive",
-        "compile": "tsc --build tsconfig.json"
+        "compile": "tsc --build tsconfig.json",
+        "cucumber": "rimraf lib/cucumber && npm run compile && ./node_modules/.bin/cucumber-js ./cucumber/features/ -p default"
     },
     "engineStrict": true,
     "author": "Hyperledger",
@@ -24,10 +25,21 @@
         "tar-stream": "1.6.1"
     },
     "devDependencies": {
+        "@types/chai": "^4.2.10",
+        "@types/chai-as-promised": "^7.1.2",
+        "@types/cucumber": "^6.0.1",
+        "@types/fs-extra": "^8.1.0",
+        "@types/mocha": "^7.0.2",
+        "@types/sinon": "^7.5.2",
+        "@types/sinon-chai": "^3.2.3",
         "chai": "^4.2.0",
+        "chai-as-promised": "^7.1.1",
+        "cucumber": "^6.0.5",
         "eslint": "^5.9.0",
+        "fs-extra": "^8.1.0",
         "mocha": "^5.2.0",
         "nyc": "^14.1.1",
+        "rimraf": "^3.0.2",
         "sinon": "^7.1.1",
         "sinon-chai": "^3.3.0",
         "typescript": "^3.7.2"
