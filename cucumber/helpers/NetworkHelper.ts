@@ -1,8 +1,7 @@
-import {Lifecycle} from "../../src/lifecycle";
-import * as path from "path";
-import * as fs from "fs-extra";
-import {Helper} from "./Helper";
-import {Gateway, Network, Wallet, Wallets, X509Identity} from "fabric-network";
+import * as path from 'path';
+import * as fs from 'fs-extra';
+import {Helper} from './Helper';
+import {Gateway, Wallet, Wallets, X509Identity} from 'fabric-network';
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -12,7 +11,7 @@ import {Gateway, Network, Wallet, Wallets, X509Identity} from "fabric-network";
 
 export class NetworkHelper {
 
-    public static async connectToGateway(orgNumber:number): Promise<Gateway> {
+    public static async connectToGateway(orgNumber: number): Promise<Gateway> {
         const peerOrgPath: string = path.join(Helper.NETWORK_DIR, 'organizations', 'peerOrganizations');
 
         const peerOrgNumberPath = path.join(peerOrgPath, `org${orgNumber}.example.com`);
@@ -23,7 +22,7 @@ export class NetworkHelper {
         const wallet: Wallet = await NetworkHelper.importIdentity(orgNumber, peerOrgNumberPath);
 
         // Set connection options; identity and wallet
-        let connectionOptions = {
+        const connectionOptions = {
             identity: `peerAdminOrg${orgNumber}`,
             wallet: wallet,
             discovery: {enabled: true, asLocalhost: true}

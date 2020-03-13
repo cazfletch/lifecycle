@@ -1,8 +1,10 @@
-import {Lifecycle} from "../../src/lifecycle";
-import * as path from "path";
-import * as fs from "fs-extra";
-import {Helper} from "./Helper";
-import PackagedChaincode = Lifecycle.PackagedChaincode;
+import * as path from 'path';
+import * as fs from 'fs-extra';
+import {Helper} from './Helper';
+import {SmartContractPackage} from '../../src';
+import {SmartContractType} from '../../src';
+import * as child_process from 'child_process';
+import stripAnsi = require('strip-ansi');
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -12,21 +14,58 @@ import PackagedChaincode = Lifecycle.PackagedChaincode;
 
 export class PackageHelper {
 
-    public static async packageContract(projectPath:string, label: string, type: string): Promise<string> {
-        // TODO: the name and version is never actually used maybe you should just do Lifecycle.packageSmartContract(options)
-        const chaincodeSource: Lifecycle.ChaincodeSource = Lifecycle.newChaincodeSource({
-            chaincodeName: label,
-            chaincodeVersion: '0.0.1'
-        });
+    public static async packageContract(projectPath: string, label: string, type: SmartContractType, language: string): Promise<string> {
 
-        // TODO: this returns a thing to then be able to install but i think it should just return the package buffer
-        const packagedChaincode: PackagedChaincode = await chaincodeSource.package({chaincodePath: projectPath, chaincodeType: type, label: label});
+        if (language === 'typescript') {
+            await this.runCommand('npm', ['install'], projectPath);
+            await this.runCommand('npm', ['run', 'build'], projectPath);
+        } else if (language === 'java') {
+            await this.runCommand('./gradlew', ['installDist'], projectPath);
+            projectPath = path.join(projectPath, 'build', 'install', 'fabcar');
+        } else if (language === 'go') {
+            await this.runCommand('go', ['mod', 'vendor'], projectPath);
+        }
+
+        const contractPackage: SmartContractPackage = await SmartContractPackage.createSmartContractPackage({
+            smartContractPath: projectPath,
+            smartContractType: type,
+            label: label
+        });
 
         await fs.ensureDir(Helper.PACKAGE_DIR);
 
-        // TODO: change this to the actual buffer
         const packagePath: string = path.join(Helper.PACKAGE_DIR, `${label}.tar.gz`);
-        await fs.writeFile(packagePath, packagedChaincode.packageFile);
+        await fs.writeFile(packagePath, contractPackage.smartContractPackage);
         return packagePath;
+    }
+
+    private static async runCommand(command: string, args: string[], cwd: string): Promise<void> {
+        const options: any = {
+            cwd
+        };
+
+        const child: child_process.ChildProcess = child_process.spawn(command, args, options);
+        // @ts-ignore
+        child.stdout.on('data', (data: string | Buffer) => {
+            const str: string = stripAnsi(data.toString());
+            // tslint:disable-next-line:no-console
+            str.replace(/[\r\n]+$/, '').split(/[\r\n]+/).forEach((line: string) => console.log(line));
+        });
+        // @ts-ignore
+        child.stderr.on('data', (data: string | Buffer) => {
+            const str: string = stripAnsi(data.toString());
+            // tslint:disable-next-line:no-console
+            str.replace(/[\r\n]+$/, '').split(/[\r\n]+/).forEach((line: string) => console.log(line));
+        });
+
+        return new Promise<void>((resolve: any, reject: any): any => {
+            child.on('error', reject);
+            child.on('exit', (code: string) => {
+                if (code) {
+                    return reject(new Error(`Failed to execute command "${command}" with  arguments "${args.join(', ')}" return code ${code}`));
+                }
+                resolve();
+            });
+        });
     }
 }

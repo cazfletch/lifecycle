@@ -6,5 +6,8 @@ Feature: Package Smart Contract
     When I package the smart contract
     Then a package should exist
     Examples:
-    | language   | type |
-    | javascript | node |
+    | language   | type   |
+    | javascript | node   |
+    | typescript | node   |
+    | java       | java   |
+    | go         | golang |

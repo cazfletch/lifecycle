@@ -14,8 +14,8 @@
 
 'use strict';
 
-import {LifecyclePackager} from "./Lifecycle";
-import {BufferStream} from "./BufferStream";
+import {LifecyclePackager} from './Lifecycle';
+import {BufferStream} from './BufferStream';
 import * as path from 'path';
 
 import {Utils} from 'fabric-common';
@@ -26,68 +26,64 @@ const logger = Utils.getLogger('packager/Node.js');
 
 export class NodePackager extends LifecyclePackager {
 
-	/**
-	 * Package chaincode source and metadata for deployment.
-	 * @param {string} chaincodePath The path to the top-level directory containing the source code
-	 * and package.json.
-	 * @param {string} [metadataPath] The path to the top-level directory containing metadata descriptors
-	 * @returns {Promise<Buffer>}
-	 */
-	async package(chaincodePath, metadataPath): Promise<Buffer> {
-		logger.debug(`packaging Node from ${chaincodePath}`);
+    /**
+     * Package smart contract source and metadata for deployment.
+     * and package.json.
+     * @param smartContractPath
+     * @param {string} [metadataPath] The path to the top-level directory containing metadata descriptors
+     * @returns {Promise<Buffer>}
+     */
+    public async package(smartContractPath: string, metadataPath?: string): Promise<Buffer> {
+        logger.debug(`packaging Node from ${smartContractPath}`);
 
-		// Compose the path to the chaincode project directory
-		// We generate the tar in two phases: First grab a list of descriptors,
-		// and then pack them into an archive.  While the two phases aren't
-		// strictly necessary yet, they pave the way for the future where we
-		// will need to assemble sources from multiple packages
+        // Compose the path to the smart contract project directory
+        // We generate the tar in two phases: First grab a list of descriptors,
+        // and then pack them into an archive.  While the two phases aren't
+        // strictly necessary yet, they pave the way for the future where we
+        // will need to assemble sources from multiple packages
 
-		const srcDescriptors = await this.findSource(chaincodePath);
-		let descriptors = srcDescriptors;
-		if (metadataPath) {
-			const metaDescriptors = await super.findMetadataDescriptors(metadataPath);
-			descriptors = srcDescriptors.concat(metaDescriptors);
-		}
-		const stream = new BufferStream();
-		await super.generateTarGz(descriptors, stream);
-		return stream.toBuffer();
-	}
+        const srcDescriptors = await this.findSource(smartContractPath);
+        let descriptors = srcDescriptors;
+        if (metadataPath) {
+            const metaDescriptors = await super.findMetadataDescriptors(metadataPath);
+            descriptors = srcDescriptors.concat(metaDescriptors);
+        }
+        const stream = new BufferStream();
+        await super.generateTarGz(descriptors, stream);
+        return stream.toBuffer();
+    }
 
-	/**
-	 * Given an input 'filePath', recursively parse the filesystem for any files
-	 * that fit the criteria for being valid node chaincode source
-	 *
-	 * @param filePath
-	 * @returns {Promise}
-	 */
-	async findSource(filePath) {
-		let files = await walk({
-			path: filePath,
-			// applies filtering based on the same rules as "npm publish":
-			// if .npmignore exists, uses rules it specifies
-			ignoreFiles: ['.npmignore'],
-			// follow symlink dirs
-			follow: true
-		});
-		const descriptors: any[] = [];
+    /**
+     * Given an input 'filePath', recursively parse the filesystem for any files
+     * that fit the criteria for being valid node smart contract source
+     *
+     * @param filePath
+     * @returns {Promise}
+     */
+    protected async findSource(filePath: string): Promise<{ name: string, fqp: string }[]> {
+        let files = await walk({
+            path: filePath,
+            // applies filtering based on the same rules as "npm publish":
+            // if .npmignore exists, uses rules it specifies
+            ignoreFiles: ['.npmignore'],
+            // follow symlink dirs
+            follow: true
+        });
+        const descriptors: { name: string, fqp: string }[] = [];
 
-		if (!files) {
-			files = [];
-		}
+        // ignore the node_modules folder by default
+        files = files.filter(f => f.indexOf('node_modules') !== 0);
 
-		// ignore the node_modules folder by default
-		files = files.filter(f => f.indexOf('node_modules') !== 0);
+        files.forEach((entry) => {
+            const desc = {
+                name: path.join('src', entry).split('\\').join('/'), // for windows style paths
+                fqp: path.join(filePath, entry)
+            };
 
-		files.forEach((entry) => {
-			const desc = {
-				name: path.join('src', entry).split('\\').join('/'), // for windows style paths
-				fqp: path.join(filePath, entry)
-			};
+            logger.debug('adding entry', desc);
+            descriptors.push(desc);
+        });
 
-			logger.debug('adding entry', desc);
-			descriptors.push(desc);
-		});
-
-		return descriptors;
-	}
+        return descriptors;
+    }
 }

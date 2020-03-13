@@ -12,8 +12,8 @@ import * as chai from 'chai';
 import * as sinonChai from 'sinon-chai';
 import * as chaiAsPromised from 'chai-as-promised';
 
-import { PackageHelper } from '../../helpers/PackageHelper';
-import {Helper} from "../../helpers/Helper";
+import {PackageHelper} from '../../helpers/PackageHelper';
+import {Helper} from '../../helpers/Helper';
 
 chai.should();
 chai.use(sinonChai);
@@ -21,7 +21,8 @@ chai.use(chaiAsPromised);
 
 setDefaultTimeout(60 * 1000);
 
-Given(/a '(.*)' smart contract of type '(.*)'/, async function (language: string, type: string) {
+Given(/a '(.*)' smart contract of type '(.*)'/, async function (language: string, type: string): Promise<void> {
+
     this.projectPath = path.join(Helper.TMP_DIR, 'fabric-samples', 'chaincode', 'fabcar', language);
     this.language = language;
     this.type = type;
@@ -29,23 +30,23 @@ Given(/a '(.*)' smart contract of type '(.*)'/, async function (language: string
 
 });
 
-Given(/the package exists$/, async function () {
+Given(/the package exists$/, async function (): Promise<void> {
     const packagedContractPath = path.join(Helper.PACKAGE_DIR, `${this.label}.tar.gz`);
 
     const exists: boolean = await fs.pathExists(packagedContractPath);
 
-    if(!exists) {
-        this.packagePath = await PackageHelper.packageContract(this.projectPath, this.label, this.type);
+    if (!exists) {
+        this.packagePath = await PackageHelper.packageContract(this.projectPath, this.label, this.type, this.language);
     } else {
         this.packagePath = packagedContractPath;
     }
 });
 
-When("I package the smart contract", async function () {
-    this.packagePath = await PackageHelper.packageContract(this.projectPath, this.label, this.type);
+When('I package the smart contract', async function (): Promise<void> {
+    this.packagePath = await PackageHelper.packageContract(this.projectPath, this.label, this.type, this.language);
 });
 
-Then("a package should exist", async function () {
+Then('a package should exist', async function (): Promise<void> {
     await fs.pathExists(this.packagePath).should.eventually.be.true;
 });
 

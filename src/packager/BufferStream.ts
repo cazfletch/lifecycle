@@ -10,18 +10,18 @@ import * as stream from 'stream';
 
 export class BufferStream extends stream.PassThrough {
 
-	private readonly buffers: any[] = [];
+    private readonly buffers: any[] = [];
 
-	constructor() {
-		super();
-		this.buffers = [];
-		this.on('data', (chunk) => {
-			this.buffers.push(chunk);
-		});
-	}
+    constructor() {
+        super();
+        this.buffers = [];
+        this.on('data', (chunk) => {
+            this.buffers.push(chunk);
+        });
+    }
 
-	toBuffer() {
-		return Buffer.concat(this.buffers);
-	}
+    toBuffer(): Buffer {
+        return Buffer.concat(this.buffers);
+    }
 
 }

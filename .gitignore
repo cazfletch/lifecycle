@@ -4,4 +4,8 @@
 *.js.map
 /cucumber/tmp/
 /usage.txt
-/lib/
+/build/
+/.vscode/
+/coverage/
+/.nyc_output/
+/unit-tests.xml

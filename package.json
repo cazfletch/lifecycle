@@ -1,17 +1,20 @@
 {
     "name": "lifecycle",
     "version": "1.0.0",
-    "description": "Chaincode lifecycle",
+    "description": "Smart Contract lifecycle",
     "engines": {
         "node": ">=12",
         "npm": ">=6"
     },
+    "main": "./build/src/index.js",
     "scripts": {
-        "lint": "eslint .",
-        "pretest": "npm run lint",
-        "test": "nyc mocha --recursive",
-        "compile": "tsc --build tsconfig.json",
-        "cucumber": "rimraf lib && npm run compile && ./node_modules/.bin/cucumber-js ./cucumber/features/ -p default"
+        "tslint": "tslint --project tsconfig.json -e 'src/old-code/*.ts'",
+        "lint": "npm run tslint 'src/**/*.ts' 'test/**/*.test.ts' 'cucumber/**/*.ts'",
+        "pretest": "npm run compile && npm run lint",
+        "test": "nyc mocha --require ts-node/register --reporter mocha-multi-reporters --reporter-options configFile=mochaConfig.json \"test/**/*.ts\"",
+        "compile": "rimraf build && tsc --build tsconfig.json",
+        "cucumber": "npm run compile && ./node_modules/.bin/cucumber-js ./cucumber/features/ -p default",
+        "debug-test": "npm run compile && mocha --require ts-node/register -u bdd --timeout 999999 './test/**/*.ts'"
     },
     "engineStrict": true,
     "author": "Hyperledger",
@@ -37,19 +40,32 @@
         "chai": "^4.2.0",
         "chai-as-promised": "^7.1.1",
         "cucumber": "^6.0.5",
-        "eslint": "^5.9.0",
         "fs-extra": "^8.1.0",
         "mocha": "^5.2.0",
+        "mocha-junit-reporter": "^1.23.3",
+        "mocha-multi-reporters": "^1.1.7",
         "nyc": "^14.1.1",
         "rimraf": "^3.0.2",
         "sinon": "^7.1.1",
         "sinon-chai": "^3.3.0",
+        "strip-ansi": "^6.0.0",
+        "ts-node": "^8.6.2",
+        "tslint": "^6.1.0",
         "typescript": "^3.7.2"
     },
     "nyc": {
+        "cache": true,
+        "extension": [
+            ".ts"
+        ],
         "exclude": [
-            "coverage/**",
-            "test/**"
+            "cucumber",
+            "test",
+            "build",
+            "old-code",
+            "coverage",
+            "*.js",
+            "src/old-code"
         ],
         "reporter": [
             "text-summary",
@@ -57,10 +73,9 @@
         ],
         "all": true,
         "check-coverage": true,
-        "statements": 100,
-        "branches": 100,
-        "functions": 100,
-        "lines": 100
-    },
-    "types": "./types/index"
+        "statements": 95.13,
+        "branches": 90.63,
+        "functions": 91.49,
+        "lines": 95.11
+    }
 }
