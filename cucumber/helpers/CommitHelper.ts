@@ -1,5 +1,5 @@
-import {Lifecycle} from "../../src/lifecycle";
-import {Network} from "fabric-network";
+import {Lifecycle} from '../../src/old-code/lifecycle';
+import {Network} from 'fabric-network';
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -9,7 +9,7 @@ import {Network} from "fabric-network";
 
 export class CommitHelper {
 
-    public static async commitSmartContract(network: Network, peerNames: string[], name: string, version: string, packageId: string) {
+    public static async commitSmartContract(network: Network, peerNames: string[], name: string, version: string, packageId: string): Promise<void> {
         const approvedChaincode: Lifecycle.ApprovedChaincode = await Lifecycle.newApprovedChaincode({
             chaincodeName: name,
             chaincodeVersion: version,

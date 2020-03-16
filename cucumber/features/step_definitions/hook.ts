@@ -6,11 +6,11 @@
 
 import {After} from 'cucumber'
 
-After(function () {
-    if(this.org1Network) {
+After(function (): void {
+    if (this.org1Network) {
         this.org1Network.gateway.disconnect()
     }
-    if(this.org2Network) {
+    if (this.org2Network) {
         this.org2Network.gateway.disconnect();
     }
 });

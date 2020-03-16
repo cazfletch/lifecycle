@@ -540,7 +540,8 @@ export namespace ChaincodeUtils {
                                 const channelMap = queryResults.getReferences();
                                 const keys = channelMap.keys();
                                 let key: any;
-                                while ((key = keys.next()).done != true) {
+                                const oldResultsLength = results.length;
+                                while ((key = keys.next()).done !== true) {
                                     const item = channelMap.get(key.value);
                                     for (const index in item.chaincodes) {
                                         const chaincode: any = item.chaincodes[index];
@@ -550,18 +551,19 @@ export namespace ChaincodeUtils {
                                             chaincodeVersion: chaincode.getVersion(),
                                             packageId: packageId,
                                             label: label
-                                        }
+                                        };
                                         results.push(found);
                                     }
                                 }
-                                if (results.length === 0) {
+
+                                if (oldResultsLength === results.length) {
                                     const empty: Lifecycle.InstalledChannelChaincodeAttributes = {
                                         channelName: '',
                                         chaincodeName: '',
                                         chaincodeVersion: '',
                                         packageId: packageId,
                                         label: label
-                                    }
+                                    };
                                     results.push(empty);
                                 }
                             }

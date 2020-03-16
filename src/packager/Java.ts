@@ -15,7 +15,7 @@
 'use strict';
 import * as path from 'path';
 import {Utils} from 'fabric-common';
-import {LifecyclePackager} from "./Lifecycle";
+import {LifecyclePackager} from './Lifecycle';
 
 import * as walk from 'ignore-walk';
 import {BufferStream} from './BufferStream';
@@ -24,53 +24,51 @@ const logger = Utils.getLogger('JavaPackager.js');
 
 export class JavaPackager extends LifecyclePackager {
 
-	/**
-	 * Package chaincode source and metadata files for deployment.
-	 * @param {string} chaincodePath The path to the top-level directory containing the source code.
-	 * @param {string} [metadataPath] The path to the top-level directory containing metadata descriptors
-	 * @returns {Promise<Buffer>}
-	 */
-	async package(chaincodePath, metadataPath) {
-		logger.debug(`packaging Java source from ${chaincodePath}`);
+    /**
+     * Package smart contract source and metadata files for deployment.
+     * @param smartContractPath
+     * @param {string} [metadataPath] The path to the top-level directory containing metadata descriptors
+     * @returns {Promise<Buffer>}
+     */
+    public async package(smartContractPath: string, metadataPath?: string): Promise<Buffer> {
+        logger.debug(`packaging Java source from ${smartContractPath}`);
 
-		let descriptors = await this.findSource(chaincodePath);
-		if (metadataPath) {
-			logger.debug(`packaging metadata files from ${metadataPath}`);
+        let descriptors: { name: string, fqp: string }[] = await this.findSource(smartContractPath);
+        if (metadataPath) {
+            logger.debug(`packaging metadata files from ${metadataPath}`);
 
-			const metaDescriptors = await super.findMetadataDescriptors(metadataPath);
-			descriptors = descriptors.concat(metaDescriptors);
-		}
-		const stream = new BufferStream();
-		await super.generateTarGz(descriptors, stream);
-		return stream.toBuffer();
-	}
+            const metaDescriptors: { name: string, fqp: string }[] = await super.findMetadataDescriptors(metadataPath);
+            descriptors = descriptors.concat(metaDescriptors);
+        }
+        const stream = new BufferStream();
+        await super.generateTarGz(descriptors, stream);
+        return stream.toBuffer();
+    }
 
-	/**
-	 * Given an input 'filePath', recursively parse the filesystem for any files
-	 * that fit the criteria for being valid java chaincode source
-	 * note: currently all files found in the source path are included
-	 *
-	 * @param filePath
-	 * @returns {Promise}
-	 */
-	async findSource(filePath) {
-		const descriptors: any[] = [];
+    /**
+     * Given an input 'filePath', recursively parse the filesystem for any files
+     * that fit the criteria for being valid java smart contract source
+     * note: currently all files found in the source path are included
+     *
+     * @param filePath
+     * @returns {Promise}
+     */
+    protected async findSource(filePath: string): Promise<{name: string, fqp: string}[]> {
+        const descriptors: { name: string, fqp: string }[] = [];
 
-		const files = await walk({path: filePath, follow: true});
-		if (files) {
-			files.forEach((entry) => {
-				const desc = {
-					name: path.join('src', entry).split('\\').join('/'), // for windows style paths
-					fqp: path.join(filePath, entry)
-				};
+        const files = await walk({path: filePath, follow: true});
+        if (files) {
+            files.forEach((entry) => {
+                const desc = {
+                    name: path.join('src', entry).split('\\').join('/'), // for windows style paths
+                    fqp: path.join(filePath, entry)
+                };
 
-				logger.debug('adding descriptor entry', desc);
-				descriptors.push(desc);
-			});
-		} else {
-			logger.debug(` No files found at this path ${filePath}`);
-		}
+                logger.debug('adding descriptor entry', desc);
+                descriptors.push(desc);
+            });
+        }
 
-		return descriptors;
-	}
+        return descriptors;
+    }
 }

@@ -16,99 +16,100 @@
 import * as fs from 'fs-extra';
 import * as klaw from 'klaw';
 import * as path from 'path';
-import { Utils} from 'fabric-common'
+import {Utils} from 'fabric-common'
 import {BufferStream} from './BufferStream';
-import {LifecyclePackager} from "./Lifecycle";
+import {LifecyclePackager} from './Lifecycle';
 
 const logger = Utils.getLogger('packager/Golang.js');
 
 export class GolangPackager extends LifecyclePackager {
 
-	/**
-	 * Package chaincode source and metadata for deployment.
-	 * @param {string} chaincodePath The Go package name or path to Go module. If a package name, it must be
-	 *        located under GOPATH/src. If a path to a Go module, a go.mod must be present.
-	 * @param {string} [metadataPath[] Optional. The path to the top-level directory containing metadata descriptors.
-	 * @param {string} [goPath] Optional. The GOPATH setting used when building the chaincode. This will
-	 *        default to the environment setting "GOPATH".
-	 * @returns {Promise<Buffer>}
-	 */
-	async package (chaincodePath, metadataPath, goPath): Promise<Buffer> {
-		// Determine the user's $GOPATH
-		let _goPath = goPath;
-		if (!_goPath) {
-			_goPath = process.env.GOPATH;
-		}
+    /**
+     * Package smart contract source and metadata for deployment.
+     *        located under GOPATH/src. If a path to a Go module, a go.mod must be present.
+     * @param smartContractPath The Go package name or path to Go module. If a package name, it must be
+     *        located under GOPATH/src. If a path to a Go module, a go.mod must be present.
+     * @param {string} [metadataPath[] Optional. The path to the top-level directory containing metadata descriptors.
+     * @param {string} [goPath] Optional. The GOPATH setting used when building the smart contract. This will
+     *        default to the environment setting "GOPATH".
+     * @returns {Promise<Buffer>}
+     */
+    public async package(smartContractPath: string, metadataPath?: string, goPath?: string): Promise<Buffer> {
+        // Determine the user's $GOPATH
+        if (!goPath) {
+            goPath = process.env.GOPATH;
+        }
 
-		// Compose the path to the go.mod candidate
-		const isModule = fs.existsSync(path.join(chaincodePath, 'go.mod'));
+        // Compose the path to the go.mod candidate
+        const isModule: boolean = await fs.pathExists(path.join(smartContractPath, 'go.mod'));
 
-		// Compose the path to the chaincode project directory
-		const projDir = isModule ? chaincodePath : path.join(_goPath, 'src', chaincodePath);
-		const basePath = isModule ? chaincodePath : _goPath;
+        // Compose the path to the smart contract project directory
+        const projDir: string = isModule ? smartContractPath : path.join(goPath!, 'src', smartContractPath);
+        const basePath: string = isModule ? smartContractPath : goPath!;
 
-		logger.debug('packaging GOLANG chaincodePath from %s', chaincodePath);
-		logger.debug('packaging GOLANG isModule %s', isModule);
-		logger.debug('packaging GOLANG _goPath from %s', _goPath);
-		logger.debug('packaging GOLANG basePath from %s', basePath);
-		logger.debug('packaging GOLANG projDir from %s', projDir);
+        logger.debug('packaging GOLANG smartContractPath from %s', smartContractPath);
+        logger.debug('packaging GOLANG isModule %s', isModule);
+        logger.debug('packaging GOLANG _goPath from %s', goPath);
+        logger.debug('packaging GOLANG basePath from %s', basePath);
+        logger.debug('packaging GOLANG projDir from %s', projDir);
 
-		// We generate the tar in two phases: First grab a list of descriptors,
-		// and then pack them into an archive.  While the two phases aren't
-		// strictly necessary yet, they pave the way for the future where we
-		// will need to assemble sources from multiple packages
+        // We generate the tar in two phases: First grab a list of descriptors,
+        // and then pack them into an archive.  While the two phases aren't
+        // strictly necessary yet, they pave the way for the future where we
+        // will need to assemble sources from multiple packages
 
-		const srcDescriptors = await this.findSource(basePath, projDir);
-		let descriptors = srcDescriptors.map(desc => {
-			if (isModule) {
-				desc.name = path.join('src', desc.name);
-			}
-			return desc;
-		});
-		if (metadataPath) {
-			const metaDescriptors = await super.findMetadataDescriptors(metadataPath);
-			descriptors = srcDescriptors.concat(metaDescriptors);
-		}
+        const srcDescriptors: { name: string, fqp: string }[] = await this.findSource(basePath, projDir);
+        let descriptors = srcDescriptors.map(desc => {
+            if (isModule) {
+                desc.name = path.join('src', desc.name);
+            }
+            return desc;
+        });
 
-		const stream = new BufferStream();
-		await super.generateTarGz(descriptors, stream);
-		return stream.toBuffer();
-	}
+        if (metadataPath) {
+            const metaDescriptors: { name: string, fqp: string }[] = await super.findMetadataDescriptors(metadataPath);
+            descriptors = srcDescriptors.concat(metaDescriptors);
+        }
 
-	/**
-	 * Given an input 'filePath', recursively parse the filesystem for any
-	 * files that fit the criteria for being valid golang source (ISREG +
-	 * (*.(go|c|h|s|mod|sum))) As a convenience, we also formulate a
-	 * tar-friendly "name" for each file based on relative position to
-	 * 'basePath'.
-	 * @param basePath
-	 * @param filePath
-	 * @returns {Promise}
-	 */
-	findSource(basePath: string, filePath: string): Promise<any> {
-		return new Promise((resolve, reject) => {
-			const descriptors: any[] = [];
-			klaw(filePath)
-				.on('data', (entry) => {
+        const stream = new BufferStream();
+        await super.generateTarGz(descriptors, stream);
+        return stream.toBuffer();
+    }
 
-					if (entry.stats.isFile() && super.isSource(entry.path)) {
-						const desc = {
-							name: path.relative(basePath, entry.path).split('\\').join('/'), // for windows style paths
-							fqp: entry.path
-						};
+    /**
+     * Given an input 'filePath', recursively parse the filesystem for any
+     * files that fit the criteria for being valid golang source (ISREG +
+     * (*.(go|c|h|s|mod|sum))) As a convenience, we also formulate a
+     * tar-friendly "name" for each file based on relative position to
+     * 'basePath'.
+     * @param basePath
+     * @param filePath
+     * @returns {Promise}
+     */
+    protected findSource(basePath: string, filePath: string): Promise<{ name: string, fqp: string }[]> {
+        return new Promise((resolve, reject) => {
+            const descriptors: { name: string, fqp: string }[] = [];
+            klaw(filePath)
+                .on('data', (entry) => {
 
-						logger.debug('adding entry', desc);
-						descriptors.push(desc);
-					}
+                    if (entry.stats.isFile() && super.isSource(entry.path)) {
+                        const desc: { name: string, fqp: string } = {
+                            name: path.relative(basePath, entry.path).split('\\').join('/'), // for windows style paths
+                            fqp: entry.path
+                        };
 
-				})
-				.on('error', (error, item) => {
-					logger.error(`error while packaging ${item.path}`);
-					reject(error);
-				})
-				.on('end', () => {
-					resolve(descriptors);
-				});
-		});
-	}
+                        logger.debug('adding entry', desc);
+                        descriptors.push(desc);
+                    }
+
+                })
+                .on('error', (error, item) => {
+                    logger.error(`error while packaging ${item.path}`);
+                    reject(error);
+                })
+                .on('end', () => {
+                    resolve(descriptors);
+                });
+        });
+    }
 }

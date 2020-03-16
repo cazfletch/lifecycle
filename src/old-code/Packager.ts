@@ -15,11 +15,11 @@
 'use strict';
 
 import {Utils} from 'fabric-common';
-import {CarPackager} from './packager/Car';
-import {NodePackager} from './packager/Node';
-import {JavaPackager} from "./packager/Java";
-import {GolangPackager} from "./packager/Golang";
-import {LifecyclePackager} from "./packager/Lifecycle";
+// import {CarPackager} from './packager/Car';
+import {NodePackager} from '../packager/Node';
+import {JavaPackager} from "../packager/Java";
+import {GolangPackager} from "../packager/Golang";
+import {LifecyclePackager} from "../packager/Lifecycle";
 
 const logger = Utils.getLogger('packager');
 
@@ -105,9 +105,9 @@ function getHandler(chaincodeType?: string): LifecyclePackager {
 	let handler;
 
 	switch (type.toLowerCase()) {
-		case 'car':
-			handler = new CarPackager();
-			break;
+		// case 'car':
+		// 	handler = new CarPackager();
+		// 	break;
 		case 'node':
 			handler = new NodePackager();
 			break;

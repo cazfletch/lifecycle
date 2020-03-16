@@ -10,33 +10,38 @@ trigger:
     include:
       - "*"
 
+pr: # Hopefully this causes PR's to trigger
+  branches:
+    include:
+      - '*'
+
 stages:
-#  - stage: unit_tests
-#    displayName: Unit tests
-#    jobs:
-#      - job: unit_tests
-#        displayName: Unit tests
-#        strategy:
-#          matrix:
-#            Linux:
-#              imageName: "ubuntu-latest"
-#              nodeVersion: "10.x"
-#            macOS:
-#              imageName: "macOS-latest"
-#              nodeVersion: "12.x"
-#            Windows:
-#              imageName: "windows-latest"
-#              nodeVersion: "12.x"
-#        pool:
-#          vmImage: $(imageName)
-#        steps:
-#          - template: azure-templates/unit-tests.yml
-#            parameters:
-#              nodeVersion: $(nodeVersion)
+  - stage: unit_tests
+    displayName: Unit tests
+    jobs:
+      - job: unit_tests
+        displayName: Unit tests
+        strategy:
+          matrix:
+            Linux:
+              imageName: "ubuntu-latest"
+              nodeVersion: "12.x"
+            macOS:
+              imageName: "macOS-latest"
+              nodeVersion: "12.x"
+            Windows:
+              imageName: "windows-latest"
+              nodeVersion: "12.x"
+        pool:
+          vmImage: $(imageName)
+        steps:
+          - template: azure-templates/unit-tests.yml
+            parameters:
+              nodeVersion: $(nodeVersion)
 
   - stage: cucumber_tests
     displayName: Cucumber tests
-#    dependsOn: unit_tests
+    dependsOn: unit_tests
     jobs:
       - job: chaincode_integration_tests
         displayName: Integration tests

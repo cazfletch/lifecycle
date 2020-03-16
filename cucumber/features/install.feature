@@ -8,5 +8,8 @@ Feature: Install Smart Contract
     When I install the smart contract
     Then the package should be installed on the peer
     Examples:
-      | language   | type |
-      | javascript | node |
+      | language   | type   |
+      | javascript | node   |
+      | typescript | node   |
+      | java       | java   |
+      | go         | golang |

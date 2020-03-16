@@ -1,16 +1,15 @@
-
 /**
  * Copyright 2020 IBM All Rights Reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import * as path from "path";
+import * as path from 'path';
 
 export class Helper {
-    public static TMP_DIR = path.join(__dirname, '..', '..', '..', 'cucumber', 'tmp');
+    public static TMP_DIR: string = path.join(__dirname, '..', '..', '..', 'cucumber', 'tmp');
 
-    public static NETWORK_DIR = path.join(Helper.TMP_DIR, 'fabric-samples', 'test-network');
+    public static NETWORK_DIR: string = path.join(Helper.TMP_DIR, 'fabric-samples', 'test-network');
 
     public static PACKAGE_DIR: string = path.join(Helper.TMP_DIR, 'packages');
 
