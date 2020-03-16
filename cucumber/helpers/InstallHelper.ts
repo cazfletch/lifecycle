@@ -23,7 +23,7 @@ export class InstallHelper {
         const result: Lifecycle.InstalledChaincode = await packagedChaincode.install({
             network: network,
             peerNames: [peerName],
-            timeout: 50000
+            timeout: 60000
         });
         return result.packageId;
     }
