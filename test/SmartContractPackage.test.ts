@@ -130,4 +130,33 @@ describe('SmartContractPackage', () => {
 
         })
     });
+
+    describe('getFileNames', () => {
+        let mysandbox: sinon.SinonSandbox;
+
+        beforeEach(() => {
+            mysandbox = sinon.createSandbox();
+        });
+
+        afterEach(() => {
+            mysandbox.restore();
+        });
+
+        it(`should get the file names`, async () => {
+            const packagePath: string = path.join(__dirname, 'data', 'packages', 'fabcar-javascript.tar.gz');
+            const packageBuffer: Buffer = await fs.readFile(packagePath);
+            const smartContract: SmartContractPackage = new SmartContractPackage(packageBuffer);
+            const result: string[] = await smartContract.getFileNames();
+            result.should.deep.equal(['metadata.json', 'src/.editorconfig', 'src/.eslintignore', 'src/.eslintrc.js', 'src/.gitignore', 'src/index.js', 'src/lib/fabcar.js', 'src/package.json']);
+        });
+
+        it('should handle error', async () => {
+            const packagePath: string = path.join(__dirname, 'data', 'packages', 'fabcar-javascript.tar.gz');
+            const packageBuffer: Buffer = await fs.readFile(packagePath);
+            const smartContract: SmartContractPackage = new SmartContractPackage(packageBuffer);
+            // @ts-ignore
+            mysandbox.stub(smartContract, 'findFileNames').rejects({message: 'some error'});
+            await smartContract.getFileNames().should.eventually.be.rejectedWith(`Could not get file names for package, received error: some error`);
+        });
+    });
 });
