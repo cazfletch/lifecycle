@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import {Helper} from './Helper';
 import {Gateway, Wallet, Wallets, X509Identity} from 'fabric-network';
+import {Lifecycle, LifecyclePeerOptions} from '../../src';
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -58,5 +59,38 @@ export class NetworkHelper {
 
         await wallet.put(`peerAdminOrg${orgNumber}`, peerOrg1Identity);
         return wallet;
+    }
+
+    public static async setupLifecycle(): Promise<Lifecycle> {
+        const lifecycle = new Lifecycle();
+
+        const org1PeerDetails = await this.getPeerDetails(1);
+        const org2PeerDetails = await this.getPeerDetails(2);
+
+        lifecycle.addPeer(org1PeerDetails);
+        lifecycle.addPeer(org2PeerDetails);
+
+        return lifecycle
+    }
+
+    private static async getPeerDetails(orgNumber: number): Promise<LifecyclePeerOptions> {
+        const peerOrgPath: string = path.join(Helper.NETWORK_DIR, 'organizations', 'peerOrganizations');
+
+        const peerOrgNumberPath = path.join(peerOrgPath, `org${orgNumber}.example.com`);
+        const orgCCPPath: string = path.join(peerOrgNumberPath, `connection-org${orgNumber}.json`);
+
+        const org1CCP: any = await fs.readJSON(orgCCPPath);
+
+        const peerInfo = org1CCP.peers[`peer0.org${orgNumber}.example.com`];
+
+        return {
+            name: `peer0.org${orgNumber}.example.com`,
+            url: peerInfo.url,
+            pem: peerInfo.tlsCACerts.pem,
+            mspid: `Org${orgNumber}MSP`,
+            sslTargetNameOverride: peerInfo.grpcOptions['ssl-target-name-override']
+        };
+
+
     }
 }

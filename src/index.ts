@@ -6,3 +6,6 @@
 
 export * from './SmartContractPackage';
 export {SmartContractType} from './packager/BasePackager'
+
+export * from './Lifecycle';
+export * from  './LifecyclePeer';
