@@ -4,6 +4,7 @@ Feature: Install Smart Contract
   Scenario Outline: Install Packaged Smart Contract
     Given a '<language>' smart contract of type '<type>'
     And the package exists
+    And the lifecycle is setup
     And the gateway is connected
     When I install the smart contract
     Then the package should be installed on the peer
