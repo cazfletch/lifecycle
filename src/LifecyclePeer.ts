@@ -1,4 +1,5 @@
 import {Client, Endorser, Endpoint, Utils} from 'fabric-common';
+import {Wallet} from 'fabric-network';
 
 const logger = Utils.getLogger('packager');
 
@@ -30,6 +31,9 @@ export class LifecyclePeer {
     private clientKey?: string;
     private requestTimeout?: number;
 
+    private wallet: Wallet | undefined;
+    private identity: string | undefined;
+
     private fabricClient: Client;
 
     /**
@@ -43,6 +47,11 @@ export class LifecyclePeer {
         this.fabricClient = fabricClient;
 
         this.initialize();
+    }
+
+    public setCredentials(wallet: Wallet, identity: string): void {
+        this.wallet = wallet;
+        this.identity = identity;
     }
 
     private initialize(): void {
