@@ -156,8 +156,8 @@ export class LifecyclePeer {
         }
     }
 
-    public async getAllInstalleSmartContracts(requestTimeout?: number): Promise<InstalledSmartContract[]> {
-        const method = 'getAllInstalleSmartContracts';
+    public async getAllInstalledSmartContracts(requestTimeout?: number): Promise<InstalledSmartContract[]> {
+        const method = 'getAllInstalledSmartContracts';
         logger.debug(method);
 
         const results: InstalledSmartContract[] = [];
@@ -253,6 +253,101 @@ export class LifecyclePeer {
             logger.error('Problem building the query request :: %s', error);
             logger.error(' problem at ::' + error.stack);
             throw new Error(`Could not get all the installed smart contract packages, received: ${error.message}`);
+        } finally {
+            endorser.disconnect();
+        }
+    }
+
+    public async getAllChannelNames(requestTimeout?: number): Promise<string[]> {
+        const method = 'getAllChannelNames';
+        logger.debug(method);
+
+        const results: string[] = [];
+
+        if (!this.wallet || !this.identity) {
+            throw new Error('Wallet or identity property not set, call setCredentials first');
+        }
+
+        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
+
+        try {
+            // @ts-ignore
+            await endorser.connect();
+            const channel = this.fabricClient.newChannel('noname');
+            // this will tell the peer it is a system wide request
+            // not for a specific channel
+            // @ts-ignore
+            channel['name'] = '';
+
+            logger.debug('%s - build the get all installed smart contracts request', method);
+
+            const buildRequest = {
+                fcn: 'GetChannels',
+                args: []
+            };
+
+            //  we are going to talk to cscc which is really just a smart contract
+            const endorsement: Endorsement = channel.newEndorsement('cscc');
+
+            const identity: Identity | undefined = await this.wallet.get(this.identity);
+            if (!identity) {
+                throw new Error(`Identity ${this.identity} does not exist in the wallet`);
+            }
+
+            const provider = this.wallet.getProviderRegistry().getProvider(identity.type);
+            const user: User = await provider.getUserContext(identity, this.identity);
+            const identityContext: IdentityContext = this.fabricClient.newIdentityContext(user);
+            endorsement.build(identityContext, buildRequest);
+
+            logger.debug('%s - sign the get all install smart contract request', method);
+            endorsement.sign(identityContext);
+
+            const endorseRequest: any = {
+                targets: [endorser]
+            };
+
+            if (requestTimeout || this.requestTimeout) {
+                // use the one set in the params if set otherwise use the one set when the peer was added
+                endorseRequest.requestTimeout = requestTimeout ? requestTimeout : this.requestTimeout;
+            }
+
+            logger.debug('%s - send the query request', method);
+            const responses = await endorsement.send(endorseRequest);
+
+            if (responses.errors && responses.errors.length > 0) {
+                for (const error of responses.errors) {
+                    logger.error('Problem with query ::' + error);
+                    throw error;
+                }
+            } else if (responses.responses && responses.responses.length > 0) {
+                logger.debug('%s - checking the query response', method);
+                for (const response of responses.responses) {
+                    if (response.response && response.response.status) {
+                        if (response.response.status === 200) {
+                            logger.debug('%s - peer response %j', method, response);
+                            const queryTrans = protos.protos.ChannelQueryResponse.decode(response.response.payload);
+                            logger.debug('queryChannels - ProcessedTransaction.channelInfo.length :: %s', queryTrans.channels.length);
+                            for (const channelInfo of queryTrans.channels) {
+                                logger.debug('>>> channel id %s ', channelInfo.channel_id);
+                                results.push(channelInfo.channel_id);
+                            }
+                        } else {
+                            throw new Error(format('query failed with status:%s ::%s', response.response.status, response.response.message));
+                        }
+                    } else {
+                        throw new Error('Query has failed');
+                    }
+                }
+            } else {
+                throw new Error('No response returned for query');
+            }
+
+            logger.debug('%s - end', method);
+            return results;
+        } catch (error) {
+            logger.error('Problem building the query request :: %s', error);
+            logger.error(' problem at ::' + error.stack);
+            throw new Error(`Could not get all channel names, received: ${error.message}`);
         } finally {
             endorser.disconnect();
         }

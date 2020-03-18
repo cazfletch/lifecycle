@@ -21,6 +21,6 @@ export class InstallHelper {
     public static async getInstalledPackages(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<{ label: string, packageId: string }[]> {
         const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
 
-        return peer.getAllInstalleSmartContracts();
+        return peer.getAllInstalledSmartContracts();
     }
 }
