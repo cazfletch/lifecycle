@@ -26,5 +26,9 @@ Given(/^the lifecycle is setup$/, async function (): Promise<void> {
 
         this.org1Identity = 'peerAdminOrg1';
         this.org2Identity = 'peerAdminOrg2';
+
+        const channelNames: string[] = await NetworkHelper.getListOfChannels(this.lifecycle, Helper.org1Peer, this.wallet, this.org1Identity);
+        channelNames.should.deep.equal(['mychannel']);
+        this.channelName = channelNames[0];
     }
 });

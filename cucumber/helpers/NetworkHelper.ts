@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import {Helper} from './Helper';
 import {Gateway, Wallet, Wallets, X509Identity} from 'fabric-network';
-import {Lifecycle, LifecyclePeerOptions} from '../../src';
+import {Lifecycle, LifecyclePeer, LifecyclePeerOptions} from '../../src';
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -71,6 +71,12 @@ export class NetworkHelper {
         lifecycle.addPeer(org2PeerDetails);
 
         return lifecycle
+    }
+
+    public static getListOfChannels(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<string[]> {
+        const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
+
+        return peer.getAllChannelNames();
     }
 
     private static async getPeerDetails(orgNumber: number): Promise<LifecyclePeerOptions> {
