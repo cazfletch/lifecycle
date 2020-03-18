@@ -7,6 +7,8 @@ import {LifecyclePeer} from '../src';
 import {Client, Endorser} from 'fabric-common';
 import * as chai from 'chai';
 import * as sinonChai from 'sinon-chai';
+import * as path from 'path';
+import {Wallet, Wallets} from 'fabric-network';
 
 const should = chai.should();
 chai.use(sinonChai);
@@ -33,4 +35,24 @@ describe('LifecyclePeer', () => {
             endorser.endpoint['url'].should.equal('grpcs://localhost:7051');
         });
     });
+
+    describe('setCredentials', () => {
+        it('should set the credentials for the peer', async () => {
+            const fabricClient: Client = new Client('myClient');
+            const peer: LifecyclePeer = new LifecyclePeer({
+                url: 'grpcs://localhost:7051',
+                mspid: 'myMSPID',
+                name: 'myPeer',
+                pem: '-----BEGIN CERTIFICATE-----\\nMIICJjCCAc2gAwIBAgIURY9F2Rt0JqOtiHbNJ6rRgfiDy2EwCgYIKoZIzj0EAwIw\\ncDELMAkGA1UEBhMCVVMxFzAVBgNVBAgTDk5vcnRoIENhcm9saW5hMQ8wDQYDVQQH\\nEwZEdXJoYW0xGTAXBgNVBAoTEG9yZzEuZXhhbXBsZS5jb20xHDAaBgNVBAMTE2Nh\\nLm9yZzEuZXhhbXBsZS5jb20wHhcNMjAwMzE2MTQ1MDAwWhcNMzUwMzEzMTQ1MDAw\\nWjBwMQswCQYDVQQGEwJVUzEXMBUGA1UECBMOTm9ydGggQ2Fyb2xpbmExDzANBgNV\\nBAcTBkR1cmhhbTEZMBcGA1UEChMQb3JnMS5leGFtcGxlLmNvbTEcMBoGA1UEAxMT\\nY2Eub3JnMS5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABHic\\nzHXBRqfe7elvQ8zuxIwigOFCuk/49bjChQxf19fL/qHBLYLOXgd3Ox5jTVyyLuO/\\nf9x19piTv7gVgv8h7BijRTBDMA4GA1UdDwEB/wQEAwIBBjASBgNVHRMBAf8ECDAG\\nAQH/AgEBMB0GA1UdDgQWBBRGw4tXsbZSI45NZNTsDT7rssJpzjAKBggqhkjOPQQD\\nAgNHADBEAiBWNIFkaageeAiEMmhauY3bTHoG45Wgjk99CjHZ6KJoTgIgMfKc9mBL\\na5JHbGNB/gsBhxIm8/akE6g+SikIz/JGty4=\\n-----END CERTIFICATE-----\\n"\n'
+            }, fabricClient);
+
+            const wallet: Wallet = await Wallets.newFileSystemWallet(path.join(__dirname, 'tmp', 'wallet'));
+
+            peer.setCredentials(wallet, 'myIdentity');
+
+            should.exist(peer['wallet']);
+            // @ts-ignore
+            peer['identity'].should.equal('myIdentity');
+        })
+    })
 });

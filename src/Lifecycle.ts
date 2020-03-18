@@ -1,5 +1,6 @@
 import {Client, Utils} from 'fabric-common';
 import {LifecyclePeer, LifecyclePeerOptions} from './LifecyclePeer';
+import {Wallet} from 'fabric-network';
 
 const logger = Utils.getLogger('packager');
 
@@ -46,5 +47,30 @@ export class Lifecycle {
         } catch (error) {
             throw new Error(`Could not add the peer ${options.name}, received error ${error.message}`);
         }
+    }
+
+    public getPeer(name: string, wallet: Wallet, identity: string): LifecyclePeer {
+        if (!name) {
+            throw new Error('Missing parameter name');
+        }
+
+        if (!wallet) {
+            throw new Error('Missing parameter wallet');
+        }
+
+        if (!identity) {
+            throw new Error('Missing parameter identity');
+        }
+
+        logger.debug('getPeer: name: %s', name);
+
+        const peer: LifecyclePeer | undefined = this.peers.get(name);
+        if (!peer) {
+            throw new Error(`Could not get peer ${name}, no peer with that name has been added`)
+        }
+
+        peer.setCredentials(wallet, identity);
+
+        return peer;
     }
 }
