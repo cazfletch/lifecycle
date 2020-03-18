@@ -4,32 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {Lifecycle} from '../../src/old-code/lifecycle';
+import {Lifecycle as OldLifecycle} from '../../src/old-code/lifecycle';
+
 import * as fs from 'fs-extra';
-import {Network} from 'fabric-network';
+import {Network, Wallet} from 'fabric-network';
+import {Lifecycle, LifecyclePeer} from '../../src';
 
 export class InstallHelper {
 
-    public static async installPackage(network: Network, peerName: string, packagePath: string, name: string, version: string): Promise<string> {
+    public static async installPackage(lifecycle: Lifecycle, peerName: string, packagePath: string, wallet: Wallet, identity: string): Promise<string | undefined> {
         const packageFile: Buffer = await fs.readFile(packagePath);
 
-        const packagedChaincode: Lifecycle.PackagedChaincode = Lifecycle.newPackagedChaincode({
-            packageFile: packageFile,
-            chaincodeName: name,
-            chaincodeVersion: version,
-            label: name
-        });
+        const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
 
-        const result: Lifecycle.InstalledChaincode = await packagedChaincode.install({
-            network: network,
-            peerNames: [peerName],
-            timeout: 60000
-        });
-        return result.packageId;
+        return peer.installSmartContractPackage(packageFile, 60000);
     }
 
-    public static async getInstalledPackages(network: Network, peerName: string): Promise<{label: string, packageId: string}[]> {
-        const result: Lifecycle.InstalledChannelChaincodeAttributes[] = await Lifecycle.queryAllInstalledChaincodes({
+    public static async getInstalledPackages(network: Network, peerName: string): Promise<{ label: string, packageId: string }[]> {
+        const result: OldLifecycle.InstalledChannelChaincodeAttributes[] = await OldLifecycle.queryAllInstalledChaincodes({
             network: network,
             peerName: peerName
         });

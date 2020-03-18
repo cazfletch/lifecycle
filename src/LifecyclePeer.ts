@@ -1,4 +1,7 @@
-import {Client, Endorser, Endpoint, Utils} from 'fabric-common';
+import {Client, Endorsement, Endorser, Endpoint, IdentityContext, User, Utils} from 'fabric-common';
+import * as protos from 'fabric-protos';
+import {Identity, Wallet} from 'fabric-network';
+import {format} from 'util';
 
 const logger = Utils.getLogger('packager');
 
@@ -30,6 +33,9 @@ export class LifecyclePeer {
     private clientKey?: string;
     private requestTimeout?: number;
 
+    private wallet: Wallet | undefined;
+    private identity: string | undefined;
+
     private fabricClient: Client;
 
     /**
@@ -45,15 +51,114 @@ export class LifecyclePeer {
         this.initialize();
     }
 
+    public setCredentials(wallet: Wallet, identity: string): void {
+        this.wallet = wallet;
+        this.identity = identity;
+    }
+
+    public async installSmartContractPackage(buffer: Buffer, requestTimeout?: number): Promise<string | undefined> {
+        const method = 'installPackage';
+        logger.debug(method);
+
+        let packageId: string | undefined;
+
+        if (!this.wallet || !this.identity) {
+            throw new Error('Wallet or identity property not set, call setCredentials first');
+        }
+
+        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
+
+        try {
+            // @ts-ignore
+            await endorser.connect();
+            const channel = this.fabricClient.newChannel('noname');
+            // this will tell the peer it is a system wide request
+            // not for a specific channel
+            // @ts-ignore
+            channel['name'] = '';
+
+            logger.debug('%s - build the install smart contract request', method);
+            const arg = new protos.lifecycle.InstallChaincodeArgs();
+            arg.setChaincodeInstallPackage(buffer);
+
+            const buildRequest = {
+                fcn: 'InstallChaincode',
+                args: [arg.toBuffer()]
+            };
+
+            //  we are going to talk to lifecycle which is really just a chaincode
+            const endorsement: Endorsement = channel.newEndorsement('_lifecycle');
+
+            const identity: Identity | undefined = await this.wallet.get(this.identity);
+            if (!identity) {
+                throw new Error(`Identity ${this.identity} does not exist in the wallet`);
+            }
+
+            const provider = this.wallet.getProviderRegistry().getProvider(identity.type);
+            const user: User = await provider.getUserContext(identity, this.identity);
+            const identityContext: IdentityContext = this.fabricClient.newIdentityContext(user);
+            endorsement.build(identityContext, buildRequest);
+
+            logger.debug('%s - sign the install smart contract request', method);
+            endorsement.sign(identityContext);
+
+            const endorseRequest: any = {
+                targets: [endorser]
+            };
+
+            if (requestTimeout || this.requestTimeout) {
+                // use the one set in the params if set otherwise use the one set when the peer was added
+                endorseRequest.requestTimeout = requestTimeout ? requestTimeout : this.requestTimeout;
+            }
+
+            logger.debug('%s - send the install smart contract request', method);
+            const responses = await endorsement.send(endorseRequest);
+
+            if (responses.errors && responses.errors.length > 0) {
+                for (const error of responses.errors) {
+                    logger.error('Problem with the smart contract install ::' + error);
+                    throw error;
+                }
+            } else if (responses.responses && responses.responses.length > 0) {
+                logger.debug('%s - check the install chaincode response', method);
+                for (const response of responses.responses) {
+                    if (response.response && response.response.status) {
+                        if (response.response.status === 200) {
+                            logger.debug('%s - peer response %j', method, response);
+                            const installChaincodeResult = protos.lifecycle.InstallChaincodeResult.decode(response.response.payload);
+
+                            packageId = installChaincodeResult.getPackageId();
+
+                        } else {
+                            throw new Error(format('Smart contract install failed with status:%s ::%s', response.response.status, response.response.message));
+                        }
+                    } else {
+                        throw new Error('Smart contract install has failed');
+                    }
+                }
+            } else {
+                throw new Error('No response returned for install of smart contract');
+            }
+            logger.debug('%s - return %s', method, packageId);
+
+            return packageId;
+        } catch (error) {
+            logger.error('Problem building the lifecycle install request :: %s', error);
+            logger.error(' problem at ::' + error.stack);
+            throw new Error(`Could not install smart contact received error: ${error.message}`);
+        } finally {
+            endorser.disconnect();
+        }
+    }
+
     private initialize(): void {
+        this.fabricClient.setTlsClientCertAndKey(this.clientCertKey!, this.clientKey!);
         // this will add the peer to the list of endorsers
         const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
-        const endpoint: Endpoint = new Endpoint({
+        const endpoint: Endpoint = this.fabricClient.newEndpoint({
             url: this.url,
             pem: this.pem,
             'ssl-target-name-override': this.sslTargetNameOverride,
-            clientCert: this.clientCertKey,
-            clientKey: this.clientKey,
             requestTimeout: this.requestTimeout
         });
         endorser['setEndpoint'](endpoint);
