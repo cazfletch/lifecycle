@@ -4,6 +4,7 @@ import {Helper} from './Helper';
 import {SmartContractPackage} from '../../src';
 import {SmartContractType} from '../../src';
 import * as child_process from 'child_process';
+
 import stripAnsi = require('strip-ansi');
 
 /**
@@ -37,6 +38,11 @@ export class PackageHelper {
         const packagePath: string = path.join(Helper.PACKAGE_DIR, `${label}.tar.gz`);
         await fs.writeFile(packagePath, contractPackage.smartContractPackage);
         return packagePath;
+    }
+
+    public static getPackageFileList(contractBuffer: Buffer): Promise<string[]> {
+        const contractPackage: SmartContractPackage = new SmartContractPackage(contractBuffer);
+        return contractPackage.getFileNames();
     }
 
     private static async runCommand(command: string, args: string[], cwd: string): Promise<void> {

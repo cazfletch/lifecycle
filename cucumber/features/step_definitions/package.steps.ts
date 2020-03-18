@@ -52,10 +52,14 @@ Then('a package should exist', async function (): Promise<void> {
     await fs.pathExists(this.packagePath).should.eventually.be.true;
 });
 
-When(/^I get the list of files$/, async function (): Promise<void> {
-    const contractBuffer: Buffer = await fs.readFile(this.packagePath);
-    const contractPackage: SmartContractPackage = new SmartContractPackage(contractBuffer);
-    this.fileList = await contractPackage.getFileNames();
+When(/^I get the list of files from a (.*)$/, async function (method: string): Promise<void> {
+    let contractBuffer: Buffer;
+    if (method === 'file') {
+        contractBuffer = await fs.readFile(this.packagePath);
+    } else {
+        contractBuffer = this.packageBuffer;
+    }
+    this.fileList = await PackageHelper.getPackageFileList(contractBuffer);
 });
 
 // tslint:disable-next-line:only-arrow-functions

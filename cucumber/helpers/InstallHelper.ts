@@ -18,9 +18,15 @@ export class InstallHelper {
         return peer.installSmartContractPackage(packageFile, 60000);
     }
 
-    public static async getInstalledPackages(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<{ label: string, packageId: string }[]> {
+    public static async getInstalledSmartContracts(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<{ label: string, packageId: string }[]> {
         const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
 
         return peer.getAllInstalledSmartContracts();
+    }
+
+    public static async getInstalledPackage(lifecycle: Lifecycle, peerName: string, packageId: string,  wallet: Wallet, identity: string): Promise<Buffer | undefined> {
+        const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
+
+        return peer.getInstalledSmartContractPackage(packageId);
     }
 }

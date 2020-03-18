@@ -1,4 +1,4 @@
-import {Client, Endorsement, Endorser, Endpoint, IdentityContext, User, Utils} from 'fabric-common';
+import {Client, Endorsement, Endorser, Endpoint, IdentityContext, ProposalResponse, User, Utils} from 'fabric-common';
 import * as protos from 'fabric-protos';
 import {Identity, Wallet} from 'fabric-network';
 import {format} from 'util';
@@ -56,32 +56,33 @@ export class LifecyclePeer {
         this.initialize();
     }
 
+    /**
+     * Set the wallet and identity that you want to use when doing lifecycle operations
+     * @param wallet Wallet, the wallet containing the identity to be used to interact with the peer
+     * @param identity string, the name of the identity to be used to interact with the peer
+     */
     public setCredentials(wallet: Wallet, identity: string): void {
         this.wallet = wallet;
         this.identity = identity;
     }
 
+    /**
+     * Install a smart contract package onto a peer
+     * @param buffer Buffer, the smart contract package buffer
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     * @return Promise<string>, the packageId of the installed smart contract
+     */
     public async installSmartContractPackage(buffer: Buffer, requestTimeout?: number): Promise<string | undefined> {
         const method = 'installPackage';
         logger.debug(method);
 
         let packageId: string | undefined;
 
-        if (!this.wallet || !this.identity) {
-            throw new Error('Wallet or identity property not set, call setCredentials first');
+        if (!buffer) {
+            throw new Error('parameter buffer missing');
         }
 
-        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
-
         try {
-            // @ts-ignore
-            await endorser.connect();
-            const channel = this.fabricClient.newChannel('noname');
-            // this will tell the peer it is a system wide request
-            // not for a specific channel
-            // @ts-ignore
-            channel['name'] = '';
-
             logger.debug('%s - build the install smart contract request', method);
             const arg = new protos.lifecycle.InstallChaincodeArgs();
             arg.setChaincodeInstallPackage(buffer);
@@ -91,92 +92,36 @@ export class LifecyclePeer {
                 args: [arg.toBuffer()]
             };
 
-            //  we are going to talk to lifecycle which is really just a smart contract
-            const endorsement: Endorsement = channel.newEndorsement('_lifecycle');
+            const responses: ProposalResponse = await this.sendRequest(buildRequest, '_lifecycle', requestTimeout);
 
-            const identity: Identity | undefined = await this.wallet.get(this.identity);
-            if (!identity) {
-                throw new Error(`Identity ${this.identity} does not exist in the wallet`);
-            }
+            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
 
-            const provider = this.wallet.getProviderRegistry().getProvider(identity.type);
-            const user: User = await provider.getUserContext(identity, this.identity);
-            const identityContext: IdentityContext = this.fabricClient.newIdentityContext(user);
-            endorsement.build(identityContext, buildRequest);
+            const installChaincodeResult = protos.lifecycle.InstallChaincodeResult.decode(payloads[0]);
 
-            logger.debug('%s - sign the install smart contract request', method);
-            endorsement.sign(identityContext);
+            packageId = installChaincodeResult.getPackageId();
 
-            const endorseRequest: any = {
-                targets: [endorser]
-            };
-
-            if (requestTimeout || this.requestTimeout) {
-                // use the one set in the params if set otherwise use the one set when the peer was added
-                endorseRequest.requestTimeout = requestTimeout ? requestTimeout : this.requestTimeout;
-            }
-
-            logger.debug('%s - send the install smart contract request', method);
-            const responses = await endorsement.send(endorseRequest);
-
-            if (responses.errors && responses.errors.length > 0) {
-                for (const error of responses.errors) {
-                    logger.error('Problem with the smart contract install ::' + error);
-                    throw error;
-                }
-            } else if (responses.responses && responses.responses.length > 0) {
-                logger.debug('%s - check the install chaincode response', method);
-                for (const response of responses.responses) {
-                    if (response.response && response.response.status) {
-                        if (response.response.status === 200) {
-                            logger.debug('%s - peer response %j', method, response);
-                            const installChaincodeResult = protos.lifecycle.InstallChaincodeResult.decode(response.response.payload);
-
-                            packageId = installChaincodeResult.getPackageId();
-
-                        } else {
-                            throw new Error(format('Smart contract install failed with status:%s ::%s', response.response.status, response.response.message));
-                        }
-                    } else {
-                        throw new Error('Smart contract install has failed');
-                    }
-                }
-            } else {
-                throw new Error('No response returned for install of smart contract');
-            }
             logger.debug('%s - return %s', method, packageId);
 
             return packageId;
         } catch (error) {
-            logger.error('Problem building the lifecycle install request :: %s', error);
+            logger.error('Problem with the request :: %s', error);
             logger.error(' problem at ::' + error.stack);
             throw new Error(`Could not install smart contact received error: ${error.message}`);
-        } finally {
-            endorser.disconnect();
         }
     }
 
+    /**
+     * Get all the smart contracts installed on a peer
+     * @param requestTimeout number [optional, [optional] the timeout used when performing the install operation
+     * @return Promise<InstalledSmartContract>, the label and packageId of each installed smart contract
+     */
     public async getAllInstalledSmartContracts(requestTimeout?: number): Promise<InstalledSmartContract[]> {
         const method = 'getAllInstalledSmartContracts';
         logger.debug(method);
 
         const results: InstalledSmartContract[] = [];
 
-        if (!this.wallet || !this.identity) {
-            throw new Error('Wallet or identity property not set, call setCredentials first');
-        }
-
-        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
-
         try {
-            // @ts-ignore
-            await endorser.connect();
-            const channel = this.fabricClient.newChannel('noname');
-            // this will tell the peer it is a system wide request
-            // not for a specific channel
-            // @ts-ignore
-            channel['name'] = '';
-
             logger.debug('%s - build the get all installed smart contracts request', method);
             const arg = new protos.lifecycle.QueryInstalledChaincodesArgs();
 
@@ -185,100 +130,89 @@ export class LifecyclePeer {
                 args: [arg.toBuffer()]
             };
 
-            //  we are going to talk to lifecycle which is really just a smart contract
-            const endorsement: Endorsement = channel.newEndorsement('_lifecycle');
+            const responses: ProposalResponse = await this.sendRequest(buildRequest, '_lifecycle', requestTimeout);
 
-            const identity: Identity | undefined = await this.wallet.get(this.identity);
-            if (!identity) {
-                throw new Error(`Identity ${this.identity} does not exist in the wallet`);
-            }
+            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
 
-            const provider = this.wallet.getProviderRegistry().getProvider(identity.type);
-            const user: User = await provider.getUserContext(identity, this.identity);
-            const identityContext: IdentityContext = this.fabricClient.newIdentityContext(user);
-            endorsement.build(identityContext, buildRequest);
+            // only sent to one peer so should only be one payload
+            const queryAllResults = protos.lifecycle.QueryInstalledChaincodesResult.decode(payloads[0]);
+            for (const queryResults of queryAllResults.getInstalledChaincodes()) {
+                const packageId = queryResults.getPackageId();
+                const label = queryResults.getLabel();
 
-            logger.debug('%s - sign the get all install smart contract request', method);
-            endorsement.sign(identityContext);
+                const result: InstalledSmartContract = {
+                    packageId: packageId,
+                    label: label
+                };
 
-            const endorseRequest: any = {
-                targets: [endorser]
-            };
-
-            if (requestTimeout || this.requestTimeout) {
-                // use the one set in the params if set otherwise use the one set when the peer was added
-                endorseRequest.requestTimeout = requestTimeout ? requestTimeout : this.requestTimeout;
-            }
-
-            logger.debug('%s - send the query request', method);
-            const responses = await endorsement.send(endorseRequest);
-
-            if (responses.errors && responses.errors.length > 0) {
-                for (const error of responses.errors) {
-                    logger.error('Problem with query ::' + error);
-                    throw error;
-                }
-            } else if (responses.responses && responses.responses.length > 0) {
-                logger.debug('%s - checking the query response', method);
-                for (const response of responses.responses) {
-                    if (response.response && response.response.status) {
-                        if (response.response.status === 200) {
-                            logger.debug('%s - peer response %j', method, response);
-                            const queryAllResults = protos.lifecycle.QueryInstalledChaincodesResult.decode(response.response.payload);
-                            for (const queryResults of queryAllResults.getInstalledChaincodes()) {
-                                const packageId = queryResults.getPackageId();
-                                const label = queryResults.getLabel();
-
-                                const result: InstalledSmartContract = {
-                                    packageId: packageId,
-                                    label: label
-                                };
-
-                                results.push(result);
-                            }
-                        } else {
-                            throw new Error(format('query failed with status:%s ::%s', response.response.status, response.response.message));
-                        }
-                    } else {
-                        throw new Error('Query has failed');
-                    }
-                }
-            } else {
-                throw new Error('No response returned for query');
+                results.push(result);
             }
 
             logger.debug('%s - end', method);
             return results;
         } catch (error) {
-            logger.error('Problem building the query request :: %s', error);
+            logger.error('Problem with the request :: %s', error);
             logger.error(' problem at ::' + error.stack);
             throw new Error(`Could not get all the installed smart contract packages, received: ${error.message}`);
-        } finally {
-            endorser.disconnect();
         }
     }
 
+    /**
+     * Get the buffer containing a smart contract package that has been installed on the peer
+     * @param packageId string, the packageId of the installed smart contract package to be retrieved
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     * @return Promise<Buffer>, the buffer containing the smart contract package
+     */
+    public async getInstalledSmartContractPackage(packageId: string, requestTimeout?: number): Promise<Buffer> {
+        const method = 'getInstalledSmartContractPackage';
+        logger.debug(method);
+
+        if (!packageId) {
+            throw new Error('parameter packageId missing');
+        }
+
+        let result: Buffer;
+
+        try {
+            logger.debug('%s - build the get package chaincode request', method);
+            const arg = new protos.lifecycle.GetInstalledChaincodePackageArgs();
+            arg.setPackageId(packageId);
+
+            const buildRequest = {
+                fcn: 'GetInstalledChaincodePackage',
+                args: [arg.toBuffer()]
+            };
+
+            const responses: ProposalResponse = await this.sendRequest(buildRequest, '_lifecycle', requestTimeout);
+
+            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
+
+            // only sent to one peer so can only be one payload
+            const results = protos.lifecycle.GetInstalledChaincodePackageResult.decode(payloads[0]);
+            const packageBytes = results.getChaincodeInstallPackage(); // the package bytes
+            result = packageBytes.toBuffer();
+
+            logger.debug('%s - end', method);
+            return result
+        } catch (error) {
+            logger.error('Problem with the request :: %s', error);
+            logger.error(' problem at ::' + error.stack);
+            throw new Error(`Could not get the installed smart contract package, received: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get a list of all the channel names that the peer has joined
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     * @return Promise<string[]>, An array of the names of the channels
+     */
     public async getAllChannelNames(requestTimeout?: number): Promise<string[]> {
         const method = 'getAllChannelNames';
         logger.debug(method);
 
         const results: string[] = [];
 
-        if (!this.wallet || !this.identity) {
-            throw new Error('Wallet or identity property not set, call setCredentials first');
-        }
-
-        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
-
         try {
-            // @ts-ignore
-            await endorser.connect();
-            const channel = this.fabricClient.newChannel('noname');
-            // this will tell the peer it is a system wide request
-            // not for a specific channel
-            // @ts-ignore
-            channel['name'] = '';
-
             logger.debug('%s - build the get all installed smart contracts request', method);
 
             const buildRequest = {
@@ -286,70 +220,24 @@ export class LifecyclePeer {
                 args: []
             };
 
-            //  we are going to talk to cscc which is really just a smart contract
-            const endorsement: Endorsement = channel.newEndorsement('cscc');
+            const responses = await this.sendRequest(buildRequest, 'cscc', requestTimeout);
 
-            const identity: Identity | undefined = await this.wallet.get(this.identity);
-            if (!identity) {
-                throw new Error(`Identity ${this.identity} does not exist in the wallet`);
-            }
+            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
 
-            const provider = this.wallet.getProviderRegistry().getProvider(identity.type);
-            const user: User = await provider.getUserContext(identity, this.identity);
-            const identityContext: IdentityContext = this.fabricClient.newIdentityContext(user);
-            endorsement.build(identityContext, buildRequest);
-
-            logger.debug('%s - sign the get all install smart contract request', method);
-            endorsement.sign(identityContext);
-
-            const endorseRequest: any = {
-                targets: [endorser]
-            };
-
-            if (requestTimeout || this.requestTimeout) {
-                // use the one set in the params if set otherwise use the one set when the peer was added
-                endorseRequest.requestTimeout = requestTimeout ? requestTimeout : this.requestTimeout;
-            }
-
-            logger.debug('%s - send the query request', method);
-            const responses = await endorsement.send(endorseRequest);
-
-            if (responses.errors && responses.errors.length > 0) {
-                for (const error of responses.errors) {
-                    logger.error('Problem with query ::' + error);
-                    throw error;
-                }
-            } else if (responses.responses && responses.responses.length > 0) {
-                logger.debug('%s - checking the query response', method);
-                for (const response of responses.responses) {
-                    if (response.response && response.response.status) {
-                        if (response.response.status === 200) {
-                            logger.debug('%s - peer response %j', method, response);
-                            const queryTrans = protos.protos.ChannelQueryResponse.decode(response.response.payload);
-                            logger.debug('queryChannels - ProcessedTransaction.channelInfo.length :: %s', queryTrans.channels.length);
-                            for (const channelInfo of queryTrans.channels) {
-                                logger.debug('>>> channel id %s ', channelInfo.channel_id);
-                                results.push(channelInfo.channel_id);
-                            }
-                        } else {
-                            throw new Error(format('query failed with status:%s ::%s', response.response.status, response.response.message));
-                        }
-                    } else {
-                        throw new Error('Query has failed');
-                    }
-                }
-            } else {
-                throw new Error('No response returned for query');
+            // only sent to one peer so only one payload
+            const queryTrans = protos.protos.ChannelQueryResponse.decode(payloads[0]);
+            logger.debug('queryChannels - ProcessedTransaction.channelInfo.length :: %s', queryTrans.channels.length);
+            for (const channelInfo of queryTrans.channels) {
+                logger.debug('>>> channel id %s ', channelInfo.channel_id);
+                results.push(channelInfo.channel_id);
             }
 
             logger.debug('%s - end', method);
             return results;
         } catch (error) {
-            logger.error('Problem building the query request :: %s', error);
+            logger.error('Problem with the request :: %s', error);
             logger.error(' problem at ::' + error.stack);
             throw new Error(`Could not get all channel names, received: ${error.message}`);
-        } finally {
-            endorser.disconnect();
         }
     }
 
@@ -364,5 +252,82 @@ export class LifecyclePeer {
             requestTimeout: this.requestTimeout
         });
         endorser['setEndpoint'](endpoint);
+    }
+
+    private async sendRequest(buildRequest: { fcn: string, args: Buffer[] }, smartContractName: string, requestTimeout ?: number): Promise<ProposalResponse> {
+        if (!this.wallet || !this.identity) {
+            throw new Error('Wallet or identity property not set, call setCredentials first');
+        }
+
+        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
+
+        try {
+            // @ts-ignore
+            await endorser.connect();
+            const channel = this.fabricClient.newChannel('noname');
+            // this will tell the peer it is a system wide request
+            // not for a specific channel
+            // @ts-ignore
+            channel['name'] = '';
+
+            const endorsement: Endorsement = channel.newEndorsement(smartContractName);
+
+            const identity: Identity | undefined = await this.wallet.get(this.identity);
+            if (!identity) {
+                throw new Error(`Identity ${this.identity} does not exist in the wallet`);
+            }
+
+            const provider = this.wallet.getProviderRegistry().getProvider(identity.type);
+            const user: User = await provider.getUserContext(identity, this.identity);
+            const identityContext: IdentityContext = this.fabricClient.newIdentityContext(user);
+            endorsement.build(identityContext, buildRequest);
+
+            logger.debug('%s - sign the get all install smart contract request');
+            endorsement.sign(identityContext);
+
+            const endorseRequest: any = {
+                targets: [endorser]
+            };
+
+            if (requestTimeout || this.requestTimeout) {
+                // use the one set in the params if set otherwise use the one set when the peer was added
+                endorseRequest.requestTimeout = requestTimeout ? requestTimeout : this.requestTimeout;
+            }
+
+            logger.debug('%s - send the query request');
+            return endorsement.send(endorseRequest);
+        } finally {
+            endorser.disconnect();
+        }
+    }
+
+    private static async processResponse(responses: ProposalResponse): Promise<Buffer[]> {
+        const payloads: Buffer[] = [];
+
+        if (responses.errors && responses.errors.length > 0) {
+            for (const error of responses.errors) {
+                logger.error('Problem with response ::' + error);
+                throw error;
+            }
+        } else if (responses.responses && responses.responses.length > 0) {
+            logger.debug('checking the query response');
+            for (const response of responses.responses) {
+                if (response.response && response.response.status) {
+                    if (response.response.status === 200) {
+                        logger.debug('peer response %j', response);
+                        payloads.push(response.response.payload);
+
+                    } else {
+                        throw new Error(format('failed with status:%s ::%s', response.response.status, response.response.message));
+                    }
+                } else {
+                    throw new Error('failure in response');
+                }
+            }
+        } else {
+            throw new Error('No response returned');
+        }
+
+        return payloads;
     }
 }
