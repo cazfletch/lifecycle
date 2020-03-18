@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {Lifecycle as OldLifecycle} from '../../src/old-code/lifecycle';
-
 import * as fs from 'fs-extra';
-import {Network, Wallet} from 'fabric-network';
+import {Wallet} from 'fabric-network';
 import {Lifecycle, LifecyclePeer} from '../../src';
 
 export class InstallHelper {
@@ -20,14 +18,9 @@ export class InstallHelper {
         return peer.installSmartContractPackage(packageFile, 60000);
     }
 
-    public static async getInstalledPackages(network: Network, peerName: string): Promise<{ label: string, packageId: string }[]> {
-        const result: OldLifecycle.InstalledChannelChaincodeAttributes[] = await OldLifecycle.queryAllInstalledChaincodes({
-            network: network,
-            peerName: peerName
-        });
+    public static async getInstalledPackages(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<{ label: string, packageId: string }[]> {
+        const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
 
-        return result.map((data) => {
-            return {label: data.label, packageId: data.packageId};
-        });
+        return peer.getAllInstalleSmartContracts();
     }
 }
