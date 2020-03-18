@@ -13,7 +13,11 @@ export class Helper {
 
     public static PACKAGE_DIR: string = path.join(Helper.TMP_DIR, 'packages');
 
-    public static org1Peer: string = 'peer0.org1.example.com:7051';
+    // TODO: these can be removed when gateway not needed anymore
+    public static oldOrg1Peer: string = 'peer0.org1.example.com:7051';
+    public static oldOrg2Peer: string = 'peer0.org2.example.com:9051';
 
-    public static org2Peer: string = 'peer0.org2.example.com:9051';
+    public static org1Peer: string = 'peer0.org1.example.com';
+
+    public static org2Peer: string = 'peer0.org2.example.com';
 }
