@@ -10,5 +10,8 @@ Feature: Approve Smart Contract
     When I approve the smart contract
     Then the smart contract should be approved
     Examples:
-      | language   | type |
-      | javascript | node |
+      | language   | type   |
+      | javascript | node   |
+      | typescript | node   |
+      | java       | java   |
+      | go         | golang |

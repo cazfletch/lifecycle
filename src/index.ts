@@ -9,3 +9,4 @@ export {SmartContractType} from './packager/BasePackager'
 
 export * from './Lifecycle';
 export * from  './LifecyclePeer';
+export * from './LifecycleChannel'

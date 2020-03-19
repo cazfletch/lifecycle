@@ -1,4 +1,14 @@
-import {Client, Endorsement, Endorser, Endpoint, IdentityContext, ProposalResponse, User, Utils} from 'fabric-common';
+import {
+    Client,
+    Committer,
+    Endorsement,
+    Endorser,
+    Endpoint,
+    IdentityContext,
+    ProposalResponse,
+    User,
+    Utils
+} from 'fabric-common';
 import * as protos from 'fabric-protos';
 import {Identity, Wallet} from 'fabric-network';
 import {format} from 'util';
@@ -243,14 +253,16 @@ export class LifecyclePeer {
 
     private initialize(): void {
         this.fabricClient.setTlsClientCertAndKey(this.clientCertKey!, this.clientKey!);
-        // this will add the peer to the list of endorsers
-        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
+
         const endpoint: Endpoint = this.fabricClient.newEndpoint({
             url: this.url,
             pem: this.pem,
             'ssl-target-name-override': this.sslTargetNameOverride,
             requestTimeout: this.requestTimeout
         });
+
+        // this will add the peer to the list of endorsers
+        const endorser: Endorser = this.fabricClient.getEndorser(this.name, this.mspid);
         endorser['setEndpoint'](endpoint);
     }
 

@@ -18,6 +18,6 @@ export class Helper {
     public static oldOrg2Peer: string = 'peer0.org2.example.com:9051';
 
     public static org1Peer: string = 'peer0.org1.example.com';
-
     public static org2Peer: string = 'peer0.org2.example.com';
+    public static orderer: string = 'orderer.example.com'
 }
