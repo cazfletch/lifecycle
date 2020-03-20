@@ -15,7 +15,7 @@ Feature: Package Smart Contract
   Scenario Outline: Get list of files
     Given a '<language>' smart contract of type '<type>'
     And the package exists
-    When I get the list of files
+    When I get the list of files from a file
     Then the file list is correct '<fileList>'
     Examples:
       | language   | type   | fileList                                                                                                                                                                                     |

@@ -26,15 +26,30 @@ export interface PackagingOptions {
     golangPath?: string
 }
 
+/**
+ * A class to package a smart contract and get the names of the files in a package
+ */
 export class SmartContractPackage {
 
+    /**
+     * The buffer containing the smart contract package
+     */
     public smartContractPackage: Buffer;
     private fileNames: string[] = [];
 
+    /**
+     * Create a smart contract package instance
+     * @param smartContractPackage Buffer, the buffer containg the smart contract package
+     */
     constructor(smartContractPackage: Buffer) {
         this.smartContractPackage = smartContractPackage;
     }
 
+    /**
+     * Create a smart contract package
+     * @param options PackagingOptions, the options to use when creating a smart contract package
+     * @return Promise<SmartContractPackage>, return an instance of this class
+     */
     public static async createSmartContractPackage(options: PackagingOptions): Promise<SmartContractPackage> {
         if (!options) {
             throw new Error('Missing options parameter');
@@ -79,6 +94,10 @@ export class SmartContractPackage {
         }
     }
 
+    /**
+     * Get the file names from a smart contract package
+     * @return Promise<string[]>, An array of the names of the files in the smart contract package
+     */
     public async getFileNames(): Promise<string[]> {
         try {
             this.fileNames = [];

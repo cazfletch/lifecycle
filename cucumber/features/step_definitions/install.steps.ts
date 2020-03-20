@@ -25,14 +25,14 @@ When('I install the smart contract', {timeout: 70 * 1000}, async function (): Pr
 
 
 Then(/^the package should be installed on the peer$/, async function (): Promise<void> {
-    const resultOrg1 = await InstallHelper.getInstalledPackages(this.lifecycle, Helper.org1Peer, this.wallet, this.org1Identity);
+    const resultOrg1 = await InstallHelper.getInstalledSmartContracts(this.lifecycle, Helper.org1Peer, this.wallet, this.org1Identity);
     let exists = resultOrg1.find((data) => {
         return data.label === this.label;
     });
 
     should.exist(exists);
 
-    const resultOrg2 = await InstallHelper.getInstalledPackages(this.lifecycle, Helper.org2Peer, this.wallet, this.org2Identity);
+    const resultOrg2 = await InstallHelper.getInstalledSmartContracts(this.lifecycle, Helper.org2Peer, this.wallet, this.org2Identity);
     exists = resultOrg2.find((data) => {
         return data.label === this.label;
     });
@@ -41,7 +41,7 @@ Then(/^the package should be installed on the peer$/, async function (): Promise
 });
 
 Given(/^the package is installed$/, {timeout: 70 * 1000}, async function (): Promise<void> {
-    const resultOrg1 = await InstallHelper.getInstalledPackages(this.lifecycle, Helper.org1Peer, this.wallet, this.org1Identity);
+    const resultOrg1 = await InstallHelper.getInstalledSmartContracts(this.lifecycle, Helper.org1Peer, this.wallet, this.org1Identity);
     let result = resultOrg1.find((data) => data.label === this.label);
     if (!result) {
         this.packageId = await InstallHelper.installPackage(this.lifecycle, Helper.org1Peer, this.packagePath, this.wallet, this.org1Identity);
@@ -49,7 +49,7 @@ Given(/^the package is installed$/, {timeout: 70 * 1000}, async function (): Pro
         this.packageId = result.packageId;
     }
 
-    const resultOrg2 = await InstallHelper.getInstalledPackages(this.lifecycle, Helper.org2Peer, this.wallet, this.org2Identity);
+    const resultOrg2 = await InstallHelper.getInstalledSmartContracts(this.lifecycle, Helper.org2Peer, this.wallet, this.org2Identity);
     result = resultOrg2.find((data) => data.label === this.label);
     if (!result) {
         this.packageId = await InstallHelper.installPackage(this.lifecycle, Helper.org2Peer, this.packagePath, this.wallet, this.org2Identity);
@@ -60,4 +60,9 @@ Given(/^the package is installed$/, {timeout: 70 * 1000}, async function (): Pro
     if (!this.packageId) {
         throw new Error('package was not installed');
     }
+});
+
+When(/^I get the installed package$/, async function (): Promise<void> {
+    this.packageBuffer = await InstallHelper.getInstalledPackage(this.lifecycle, Helper.org1Peer, this.packageId, this.wallet, this.org1Identity);
+    should.exist(this.packageBuffer);
 });

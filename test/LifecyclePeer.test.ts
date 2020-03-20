@@ -228,6 +228,11 @@ describe('LifecyclePeer', () => {
                 });
             });
 
+            it('should handle buffer not being set', async () => {
+                // @ts-ignore
+                await peer.installSmartContractPackage().should.eventually.be.rejectedWith('parameter buffer missing');
+            });
+
             it('should handle wallet or identity not being set', async () => {
                 peer['wallet'] = undefined;
                 peer['identity'] = undefined;
@@ -264,7 +269,7 @@ describe('LifecyclePeer', () => {
                     }]
                 });
 
-                await peer.installSmartContractPackage(packageBuffer).should.eventually.be.rejectedWith('Could not install smart contact received error: Smart contract install failed with status:400 ::some error');
+                await peer.installSmartContractPackage(packageBuffer).should.eventually.be.rejectedWith('Could not install smart contact received error: failed with status:400 ::some error');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -281,7 +286,7 @@ describe('LifecyclePeer', () => {
                     }]
                 });
 
-                await peer.installSmartContractPackage(packageBuffer).should.eventually.be.rejectedWith('Could not install smart contact received error: Smart contract install has failed');
+                await peer.installSmartContractPackage(packageBuffer).should.eventually.be.rejectedWith('Could not install smart contact received error: failure in response');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -294,7 +299,7 @@ describe('LifecyclePeer', () => {
             it('should handle no response', async () => {
                 endorsementSendStub.resolves({});
 
-                await peer.installSmartContractPackage(packageBuffer).should.eventually.be.rejectedWith('Could not install smart contact received error: No response returned for install of smart contract');
+                await peer.installSmartContractPackage(packageBuffer).should.eventually.be.rejectedWith('Could not install smart contact received error: No response returned');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -478,7 +483,7 @@ describe('LifecyclePeer', () => {
                     }]
                 });
 
-                await peer.getAllInstalledSmartContracts().should.eventually.be.rejectedWith('Could not get all the installed smart contract packages, received: query failed with status:400 ::some error');
+                await peer.getAllInstalledSmartContracts().should.eventually.be.rejectedWith('Could not get all the installed smart contract packages, received: failed with status:400 ::some error');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -495,7 +500,7 @@ describe('LifecyclePeer', () => {
                     }]
                 });
 
-                await peer.getAllInstalledSmartContracts().should.eventually.be.rejectedWith('Could not get all the installed smart contract packages, received: Query has failed');
+                await peer.getAllInstalledSmartContracts().should.eventually.be.rejectedWith('Could not get all the installed smart contract packages, received: failure in response');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -508,7 +513,209 @@ describe('LifecyclePeer', () => {
             it('should handle no response', async () => {
                 endorsementSendStub.resolves({});
 
-                await peer.getAllInstalledSmartContracts().should.eventually.be.rejectedWith('Could not get all the installed smart contract packages, received: No response returned for query');
+                await peer.getAllInstalledSmartContracts().should.eventually.be.rejectedWith('Could not get all the installed smart contract packages, received: No response returned');
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+        });
+
+        describe('getInstalledSmartContractPackage', () => {
+            let mysandbox: sinon.SinonSandbox;
+
+            let buildRequest: any;
+            let endorser: Endorser;
+
+            let endorserConnectStub: sinon.SinonStub;
+            let endorsementBuildSpy: sinon.SinonSpy;
+            let endorsementSignSpy: sinon.SinonSpy;
+            let endorsementSendStub: sinon.SinonStub;
+
+            beforeEach(() => {
+                mysandbox = sinon.createSandbox();
+
+                peer.setCredentials(wallet, 'myIdentity');
+                peer['requestTimeout'] = undefined;
+
+                endorser = fabricClient.getEndorser('myPeer', 'myMSPID');
+                endorserConnectStub = mysandbox.stub(endorser, 'connect').resolves();
+
+                endorsementBuildSpy = mysandbox.spy(Endorsement.prototype, 'build');
+                endorsementSignSpy = mysandbox.spy(Endorsement.prototype, 'sign');
+                endorsementSendStub = mysandbox.stub(Endorsement.prototype, 'send');
+                endorsementSendStub.resolves();
+
+                const arg = new protos.lifecycle.GetInstalledChaincodePackageArgs();
+                arg.setPackageId('myPackageId');
+
+                buildRequest = {
+                    fcn: 'GetInstalledChaincodePackage',
+                    args: [arg.toBuffer()]
+                };
+            });
+
+            afterEach(() => {
+                mysandbox.restore();
+            });
+
+            it('should get the installed smart contract package', async () => {
+                const pkgData = Buffer.from('myPackage');
+                const getInstallPackageEncodedResult = protos.lifecycle.GetInstalledChaincodePackageResult.encode({
+                    chaincode_install_package: pkgData
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: getInstallPackageEncodedResult
+                        }
+                    }]
+                });
+
+                const result: Buffer = await peer.getInstalledSmartContractPackage('myPackageId');
+                result.compare(pkgData).should.equal(0);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should get installed the smart contract using the timeout passed in', async () => {
+                peer['requestTimeout'] = 1234;
+                const pkgData = Buffer.from('myPackage');
+                const getInstallPackageEncodedResult = protos.lifecycle.GetInstalledChaincodePackageResult.encode({
+                    chaincode_install_package: pkgData
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: getInstallPackageEncodedResult
+                        }
+                    }]
+                });
+
+                const result: Buffer = await peer.getInstalledSmartContractPackage('myPackageId', 4321);
+                result.compare(pkgData).should.equal(0);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser],
+                    requestTimeout: 4321
+                });
+            });
+
+            it('should get the installed smart contracts using the timeout', async () => {
+                peer['requestTimeout'] = 1234;
+                const pkgData = Buffer.from('myPackage');
+                const getInstallPackageEncodedResult = protos.lifecycle.GetInstalledChaincodePackageResult.encode({
+                    chaincode_install_package: pkgData
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: getInstallPackageEncodedResult
+                        }
+                    }]
+                });
+
+                const result: Buffer = await peer.getInstalledSmartContractPackage('myPackageId');
+                result.compare(pkgData).should.equal(0);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser],
+                    requestTimeout: 1234
+                });
+            });
+
+            it('should handle packageId not being set', async () => {
+                // @ts-ignore
+                await peer.getInstalledSmartContractPackage().should.eventually.be.rejectedWith('parameter packageId missing');
+            });
+
+            it('should handle wallet or identity not being set', async () => {
+                peer['wallet'] = undefined;
+                peer['identity'] = undefined;
+                await peer.getInstalledSmartContractPackage('myPackageId').should.eventually.be.rejectedWith('Wallet or identity property not set, call setCredentials first');
+            });
+
+            it('should handle identity not being in the wallet', async () => {
+                peer['identity'] = 'otherIdentity';
+                await peer.getInstalledSmartContractPackage('myPackageId').should.eventually.be.rejectedWith('Could not get the installed smart contract package, received: Identity otherIdentity does not exist in the wallet');
+            });
+
+            it('should handle errors in the response', async () => {
+                endorsementSendStub.resolves({
+                    errors: [new Error('some error')]
+                });
+
+                await peer.getInstalledSmartContractPackage('myPackageId').should.eventually.be.rejectedWith('Could not get the installed smart contract package, received: some error');
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should handle a non 200 status code', async () => {
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 400,
+                            message: 'some error'
+                        }
+                    }]
+                });
+
+                await peer.getInstalledSmartContractPackage('myPackageId').should.eventually.be.rejectedWith('Could not get the installed smart contract package, received: failed with status:400 ::some error');
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should handle no response details', async () => {
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {}
+                    }]
+                });
+
+                await peer.getInstalledSmartContractPackage('myPackageId').should.eventually.be.rejectedWith('Could not get the installed smart contract package, received: failure in response');
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should handle no response', async () => {
+                endorsementSendStub.resolves({});
+
+                await peer.getInstalledSmartContractPackage('myPackageId').should.eventually.be.rejectedWith('Could not get the installed smart contract package, received: No response returned');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -681,7 +888,7 @@ describe('LifecyclePeer', () => {
                     }]
                 });
 
-                await peer.getAllChannelNames().should.eventually.be.rejectedWith('Could not get all channel names, received: query failed with status:400 ::some error');
+                await peer.getAllChannelNames().should.eventually.be.rejectedWith('Could not get all channel names, received: failed with status:400 ::some error');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -698,7 +905,7 @@ describe('LifecyclePeer', () => {
                     }]
                 });
 
-                await peer.getAllChannelNames().should.eventually.be.rejectedWith('Could not get all channel names, received: Query has failed');
+                await peer.getAllChannelNames().should.eventually.be.rejectedWith('Could not get all channel names, received: failure in response');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
@@ -711,7 +918,7 @@ describe('LifecyclePeer', () => {
             it('should handle no response', async () => {
                 endorsementSendStub.resolves({});
 
-                await peer.getAllChannelNames().should.eventually.be.rejectedWith('Could not get all channel names, received: No response returned for query');
+                await peer.getAllChannelNames().should.eventually.be.rejectedWith('Could not get all channel names, received: No response returned');
 
                 endorserConnectStub.should.have.been.called;
                 endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);

@@ -10,17 +10,26 @@ const logger = Utils.getLogger('packager');
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
+/**
+ * The Lifecycle class lets you add details of peers that you want to perform lifecycle operations on.
+ */
 export class Lifecycle {
 
     private peers: Map<string, LifecyclePeer> = new Map<string, LifecyclePeer>();
     private fabricClient: Client;
 
+    /**
+     * Create a Lifecycle instance
+     */
     constructor() {
         this.fabricClient = new Client('lifecycle client');
 
     }
 
+    /**
+     * Add details of a peer that you want to perform lifecycle options on
+     * @param options LifecyclePeerOptions
+     */
     public addPeer(options: LifecyclePeerOptions): void {
         if (!options) {
             throw new Error('Missing options parameter');
@@ -49,6 +58,12 @@ export class Lifecycle {
         }
     }
 
+    /**
+     * Get a previously added peer
+     * @param name string, the name of the peer that was added
+     * @param wallet Wallet, the wallet containing the identity to be used to interact with the peer
+     * @param identity string, the name of the identity to be used to interact with the peer
+     */
     public getPeer(name: string, wallet: Wallet, identity: string): LifecyclePeer {
         if (!name) {
             throw new Error('Missing parameter name');
