@@ -21,14 +21,14 @@ export class ApproveHelper {
         });
     }
 
-    public static async checkCommitReadiness(network: Network, peerName: string, name: string, version: string): Promise<boolean> {
+    public static async checkCommitReadiness(lifecycle: Lifecycle, peerName: string, name: string, version: string, wallet: Wallet, identity: string): Promise<boolean> {
         try {
-            const result = await oldLifecycle.queryCommitReadiness({
-                chaincodeName: name,
-                chaincodeVersion: version,
-                sequence: 1,
-                network: network,
-                peerName: peerName
+            const channel: LifecycleChannel = lifecycle.getChannel('mychannel', wallet, identity);
+
+            const result: Map<string, boolean> = await channel.getCommitReadiness(peerName, {
+                smartContractName: name,
+                smartContractVersion: version,
+                sequence: 1
             });
 
             return Array.from(result.values()).every((value) => value);

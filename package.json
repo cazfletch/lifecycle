@@ -75,9 +75,9 @@
         ],
         "all": true,
         "check-coverage": true,
-        "statements": 97.9,
-        "branches": 94.81,
-        "functions": 94.67,
-        "lines": 97.9
+        "statements": 98.1,
+        "branches": 95.18,
+        "functions": 94.74,
+        "lines": 98.1
     }
 }

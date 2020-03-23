@@ -1,12 +1,13 @@
 import {
     Channel,
     Client, Committer,
-    Endorser,
+    Endorser, ProposalResponse,
     Utils
 } from 'fabric-common';
 import * as protos from 'fabric-protos';
 import {Contract, Gateway, GatewayOptions, Network, Transaction, Wallet} from 'fabric-network';
 import * as Long from 'long';
+import {LifecycleCommon} from './LifecycleCommon';
 
 const logger = Utils.getLogger('packager');
 
@@ -65,8 +66,121 @@ export class LifecycleChannel {
         return this.submitTransaction(peerNames, ordererName, options, this.COMMIT, requestTimeout);
     }
 
-    private async submitTransaction(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, functionName: string, requestTimeout?: number): Promise<void> {
-        if (!peerNames || peerNames.length === 0) {
+    public async getCommitReadiness(peerName: string, options: SmartContractDefinitionOptions, requestTimeout?: number): Promise<Map<string, boolean>> {
+        const method = 'CheckCommitReadinessResult';
+        logger.debug('%s - start', method);
+
+        if (!peerName) {
+            throw new Error('parameter peerName is missing');
+        }
+
+        if (!options) {
+            throw new Error('parameter options is missing');
+        }
+
+        if (!options.smartContractName) {
+            throw new Error('missing option smartContractName');
+        }
+
+        if (!options.smartContractVersion) {
+            throw new Error('missing option smartContractVersion');
+        }
+
+        const commitReadiness: Map<string, boolean> = new Map();
+
+        const gateway: Gateway = new Gateway();
+        const endorser: Endorser = this.fabricClient.getEndorser(peerName);
+
+        try {
+            logger.debug('%s - build the get defined smart contract request', method);
+            const arg = new protos.lifecycle.CheckCommitReadinessArgs();
+            arg.setName(options.smartContractName);
+            arg.setVersion(options.smartContractVersion);
+            arg.setSequence(Long.fromValue(options.sequence));
+
+            if (typeof options.initRequired === 'boolean') {
+                arg.setInitRequired(options.initRequired);
+            }
+
+            // if (options.endorsementPlugin) {
+            //     arg.setEndorsementPlugin(options.endorsementPlugin);
+            // } else {
+            // arg.setEndorsementPlugin('escc');
+            // }
+            // if (options.validationPlugin) {
+            //     arg.setValidationPlugin(options.validationPlugin);
+            // } else {
+            // arg.setValidationPlugin('vscc');
+            // }
+            // if (options.endorsementPolicy) {
+            //     arg.setValidationParameter(getEndorsementPolicyBytes(options.endorsementPolicy));
+            // }
+            // if (options.collectionConfig) {
+            //     arg.setCollections(getCollectionConfig(options.collectionConfig));
+            // }
+
+            const buildRequest = {
+                fcn: 'CheckCommitReadiness',
+                args: [arg.toBuffer()]
+            };
+
+            const gatewayOptions: GatewayOptions = {
+                wallet: this.wallet,
+                identity: this.identity,
+                discovery: {enabled: false}
+            };
+
+            // @ts-ignore
+            await endorser.connect();
+
+            logger.debug('%s - connect to the network');
+            await gateway.connect(this.fabricClient, gatewayOptions);
+            const network: Network = await gateway.getNetwork(this.channelName);
+
+            //  we are going to talk to lifecycle which is really just a smart contract
+            const endorsement = network.getChannel().newEndorsement('_lifecycle');
+            endorsement.build(network.getGateway().identityContext, buildRequest);
+
+            logger.debug('%s - sign the request', method);
+            endorsement.sign(network.getGateway().identityContext);
+
+            const endorseRequest: any = {
+                targets: [endorser]
+            };
+
+            if (requestTimeout) {
+                endorseRequest.requestTimeout = requestTimeout;
+            }
+
+            logger.debug('%s - send the query request', method);
+            const responses: ProposalResponse = await endorsement.send(endorseRequest);
+
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
+
+            const results = protos.lifecycle.CheckCommitReadinessResult.decode(payloads[0]);
+            const approvalMap = results.getApprovals();
+            const keys = approvalMap.keys();
+            let key: any;
+            while ((key = keys.next()).done !== true) {
+                const isApproved = approvalMap.get(key.value);
+                commitReadiness.set(key.value, isApproved);
+            }
+
+            logger.debug('%s - end', method);
+            return commitReadiness;
+        } catch (error) {
+            logger.error('Problem with the request :: %s', error);
+            logger.error(' problem at ::' + error.stack);
+            throw new Error(`Could not get commit readiness, received error: ${error.message}`);
+        } finally {
+            gateway.disconnect();
+            endorser.disconnect();
+        }
+    }
+
+    private async submitTransaction(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, functionName: string, requestTimeout ?: number): Promise<void> {
+        if (!peerNames || peerNames.length === 0
+        ) {
             throw new Error('parameter peers was missing or empty array');
         }
 

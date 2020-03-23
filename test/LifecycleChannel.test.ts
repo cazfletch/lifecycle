@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {Channel, Client, Committer, Endorser} from 'fabric-common';
+import {Channel, Client, Committer, Endorsement, Endorser, IdentityContext} from 'fabric-common';
 import * as protos from 'fabric-protos';
 import * as chai from 'chai';
 import * as sinonChai from 'sinon-chai';
@@ -24,7 +24,7 @@ const should = chai.should();
 chai.use(sinonChai);
 chai.use(chaiAsPromised);
 
-// tslint:disable:no - unused - expression
+// tslint:disable:no-unused-expression
 describe('LifecycleChannel', () => {
 
     let wallet: Wallet;
@@ -460,6 +460,220 @@ describe('LifecycleChannel', () => {
 
                 transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorserOne, endorserTwo]);
                 transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
+        });
+
+        describe('getCommitReadiness', () => {
+
+            let mysandbox: sinon.SinonSandbox;
+            let endorserConnectStub: sinon.SinonStub;
+
+            let endorsementBuildSpy: sinon.SinonSpy;
+            let endorsementSignSpy: sinon.SinonSpy;
+            let endorsementSendStub: sinon.SinonStub;
+
+            let endorser: Endorser;
+            let arg: any;
+            let buildRequest: any;
+
+            beforeEach(() => {
+                mysandbox = sinon.createSandbox();
+
+                arg = new protos.lifecycle.CheckCommitReadinessArgs();
+                arg.setName('myContract');
+                arg.setVersion('0.0.1');
+                arg.setSequence(Long.fromValue(1));
+
+                buildRequest = {
+                    fcn: 'CheckCommitReadiness',
+                    args: [arg.toBuffer()]
+                };
+
+                endorser = fabricClient.getEndorser('myPeer', 'myMSPID');
+                endorserConnectStub = mysandbox.stub(endorser, 'connect').resolves();
+
+                endorsementBuildSpy = mysandbox.spy(Endorsement.prototype, 'build');
+                endorsementSignSpy = mysandbox.spy(Endorsement.prototype, 'sign');
+                endorsementSendStub = mysandbox.stub(Endorsement.prototype, 'send');
+                endorsementSendStub.resolves();
+            });
+
+            afterEach(() => {
+                mysandbox.restore();
+            });
+
+            it('should get the commit readiness of a smart contract definition', async () => {
+
+                const encodedResult = protos.lifecycle.CheckCommitReadinessResult.encode({
+                    approvals: {
+                        org1: true, org2: false
+                    }
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: encodedResult
+                        }
+                    }]
+                });
+
+                const result: Map<string, boolean> = await channel.getCommitReadiness('myPeer', {
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    sequence: 1
+                });
+
+                result.size.should.equal(2);
+                // @ts-ignore
+                result.get('org1').should.equal(true);
+                // @ts-ignore
+                result.get('org2').should.equal(false);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should get the commit readiness of a smart contract definition with a timeout', async () => {
+
+                const encodedResult = protos.lifecycle.CheckCommitReadinessResult.encode({
+                    approvals: {
+                        org1: true, org2: false
+                    }
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: encodedResult
+                        }
+                    }]
+                });
+
+                const result: Map<string, boolean> = await channel.getCommitReadiness('myPeer', {
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    sequence: 1
+                }, 1234);
+
+                result.size.should.equal(2);
+                // @ts-ignore
+                result.get('org1').should.equal(true);
+                // @ts-ignore
+                result.get('org2').should.equal(false);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser],
+                    requestTimeout: 1234
+                });
+            });
+
+            it('should get the commit readiness of a smart contract definition with init required', async () => {
+
+                arg.setInitRequired(true);
+
+                buildRequest = {
+                    fcn: 'CheckCommitReadiness',
+                    args: [arg.toBuffer()]
+                };
+
+                const encodedResult = protos.lifecycle.CheckCommitReadinessResult.encode({
+                    approvals: {
+                        org1: true, org2: false
+                    }
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: encodedResult
+                        }
+                    }]
+                });
+
+                const result: Map<string, boolean> = await channel.getCommitReadiness('myPeer', {
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    sequence: 1,
+                    initRequired: true
+                });
+
+                result.size.should.equal(2);
+                // @ts-ignore
+                result.get('org1').should.equal(true);
+                // @ts-ignore
+                result.get('org2').should.equal(false);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should handle no peerName set', async () => {
+                // @ts-ignore
+                await channel.getCommitReadiness(undefined, {
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    sequence: 1,
+                }).should.eventually.be.rejectedWith('parameter peerName is missing');
+            });
+
+            it('should handle no options set', async () => {
+                // @ts-ignore
+                await channel.getCommitReadiness('myPeer', undefined).should.eventually.be.rejectedWith('parameter options is missing');
+            });
+
+            it('should handle no smartContractName set', async () => {
+                // @ts-ignore
+                await channel.getCommitReadiness('myPeer', {
+                    smartContractVersion: '0.0.1',
+                    sequence: 1,
+                }).should.eventually.be.rejectedWith('missing option smartContractName');
+            });
+
+            it('should handle no smartContractVersion set', async () => {
+                // @ts-ignore
+                await channel.getCommitReadiness('myPeer', {
+                    smartContractName: 'myContract',
+                    sequence: 1,
+                }).should.eventually.be.rejectedWith('missing option smartContractVersion');
+            });
+
+            it('should handle error with sending request', async () => {
+
+                const encodedResult = protos.lifecycle.CheckCommitReadinessResult.encode({
+                    approvals: {
+                        org1: true, org2: false
+                    }
+                });
+
+                endorsementSendStub.rejects({message: 'some error'});
+
+                await channel.getCommitReadiness('myPeer', {
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    sequence: 1
+                }).should.eventually.be.rejectedWith('Could not get commit readiness, received error: some error');
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
             });
         });
     });
