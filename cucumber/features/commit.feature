@@ -11,5 +11,9 @@ Feature: Commit Smart Contract
     When I commit the contract
     Then the smart contract should committed
     Examples:
-      | language   | type |
-      | javascript | node |
+      | language   | type   |
+      | javascript | node   |
+      | typescript | node   |
+      | java       | java   |
+      | go         | golang |
+
