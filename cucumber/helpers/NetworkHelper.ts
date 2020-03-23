@@ -70,6 +70,18 @@ export class NetworkHelper {
         lifecycle.addPeer(org1PeerDetails);
         lifecycle.addPeer(org2PeerDetails);
 
+        const ordererPemPath: string = path.join(Helper.NETWORK_DIR, 'organizations', 'ordererOrganizations', 'example.com', 'orderers', 'orderer.example.com', 'tls', 'ca.crt');
+
+        const ordererPem: string = await fs.readFile(ordererPemPath, 'utf8');
+
+        lifecycle.addOrderer({
+            name: 'orderer.example.com',
+            url: 'grpcs://localhost:7050',
+            mspid: 'OrdererMSP',
+            pem: ordererPem,
+            sslTargetNameOverride: 'orderer.example.com'
+        });
+
         return lifecycle
     }
 

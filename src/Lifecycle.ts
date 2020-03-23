@@ -1,6 +1,7 @@
-import {Client, Utils} from 'fabric-common';
+import {Client, Committer, Endpoint, Utils} from 'fabric-common';
 import {LifecyclePeer, LifecyclePeerOptions} from './LifecyclePeer';
 import {Wallet} from 'fabric-network';
+import {LifecycleChannel} from './LifecycleChannel';
 
 const logger = Utils.getLogger('packager');
 
@@ -9,6 +10,15 @@ const logger = Utils.getLogger('packager');
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+export interface OrdererOptions {
+    name: string,
+    url: string,
+    mspid: string,
+    pem?: string
+    sslTargetNameOverride?: string,
+    requestTimeout?: number;
+}
 
 /**
  * The Lifecycle class lets you add details of peers that you want to perform lifecycle operations on.
@@ -87,5 +97,49 @@ export class Lifecycle {
         peer.setCredentials(wallet, identity);
 
         return peer;
+    }
+
+    public getChannel(channelName: string, wallet: Wallet, identity: string): LifecycleChannel {
+        if (!channelName) {
+            throw new Error('parameter channelName is missing');
+        }
+
+        if (!wallet) {
+            throw new Error('parameter wallet is missing');
+        }
+
+        if (!identity) {
+            throw new Error('parameter identity is missing');
+        }
+
+        return new LifecycleChannel(this.fabricClient, channelName, wallet, identity);
+    }
+
+    public addOrderer(options: OrdererOptions): void {
+        if (!options) {
+            throw new Error('parameter options is missing');
+        }
+
+        if (!options.name) {
+            throw new Error('missing option name');
+        }
+
+        if (!options.mspid) {
+            throw new Error('missing option mspid');
+        }
+
+        if (!options.url) {
+            throw new Error('missing option url');
+        }
+
+        const endpoint: Endpoint = this.fabricClient.newEndpoint({
+            url: options.url,
+            'ssl-target-name-override': options.sslTargetNameOverride,
+            requestTimeout: options.requestTimeout,
+            pem: options.pem
+        });
+
+        const committer: Committer = this.fabricClient.getCommitter(options.name, options.mspid);
+        committer.setEndpoint(endpoint);
     }
 }
