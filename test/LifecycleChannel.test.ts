@@ -96,202 +96,371 @@ describe('LifecycleChannel', () => {
         });
     });
 
-    describe('approveSmartContractDefinition', () => {
+    describe('fabric functions', () => {
 
-        let mysandbox: sinon.SinonSandbox;
-        let endorserConnectStub: sinon.SinonStub;
-        let committerConnectStub: sinon.SinonStub;
+        describe('approveSmartContractDefinition', () => {
 
-        let gatewayConnectSpy: sinon.SinonSpy;
+            let mysandbox: sinon.SinonSandbox;
+            let endorserConnectStub: sinon.SinonStub;
+            let committerConnectStub: sinon.SinonStub;
 
-        let transactionSetEndoringPeersSpy: sinon.SinonSpy;
-        let transactionSubmitStub: sinon.SinonStub;
+            let gatewayConnectSpy: sinon.SinonSpy;
 
-        let addEndorserStub: sinon.SinonStub;
-        let addCommitterStub: sinon.SinonStub;
+            let transactionSetEndorsingPeersSpy: sinon.SinonSpy;
+            let transactionSubmitStub: sinon.SinonStub;
 
-        let endorser: Endorser;
-        let committer: Committer;
-        let arg: any;
+            let addEndorserStub: sinon.SinonStub;
+            let addCommitterStub: sinon.SinonStub;
 
-        beforeEach(() => {
-            mysandbox = sinon.createSandbox();
+            let endorser: Endorser;
+            let committer: Committer;
+            let arg: any;
 
-            endorser = fabricClient.getEndorser('myPeer', 'myMSPID');
-            endorserConnectStub = mysandbox.stub(endorser, 'connect').resolves();
+            beforeEach(() => {
+                mysandbox = sinon.createSandbox();
 
-            committer = fabricClient.getCommitter('myOrderer', 'osmps');
-            committerConnectStub = mysandbox.stub(committer, 'connect').resolves();
+                endorser = fabricClient.getEndorser('myPeer', 'myMSPID');
+                endorserConnectStub = mysandbox.stub(endorser, 'connect').resolves();
 
-            arg = new protos.lifecycle.ApproveChaincodeDefinitionForMyOrgArgs();
-            arg.setName('myContract');
-            arg.setVersion('0.0.1');
-            arg.setSequence(Long.fromValue(1));
+                committer = fabricClient.getCommitter('myOrderer', 'osmps');
+                committerConnectStub = mysandbox.stub(committer, 'connect').resolves();
 
-            const local = new protos.lifecycle.ChaincodeSource.Local();
-            local.setPackageId('myPackageId');
+                arg = new protos.lifecycle.ApproveChaincodeDefinitionForMyOrgArgs();
+                arg.setName('myContract');
+                arg.setVersion('0.0.1');
+                arg.setSequence(Long.fromValue(1));
 
-            const source = new protos.lifecycle.ChaincodeSource();
-            source.setLocalPackage(local);
-            arg.setSource(source);
+                const local = new protos.lifecycle.ChaincodeSource.Local();
+                local.setPackageId('myPackageId');
 
-            addEndorserStub = mysandbox.stub(Channel.prototype, 'addEndorser');
-            addCommitterStub = mysandbox.stub(Channel.prototype, 'addCommitter');
+                const source = new protos.lifecycle.ChaincodeSource();
+                source.setLocalPackage(local);
+                arg.setSource(source);
 
-            gatewayConnectSpy = mysandbox.spy(Gateway.prototype, 'connect');
+                addEndorserStub = mysandbox.stub(Channel.prototype, 'addEndorser');
+                addCommitterStub = mysandbox.stub(Channel.prototype, 'addCommitter');
 
-            transactionSetEndoringPeersSpy = mysandbox.spy(Transaction.prototype, 'setEndorsingPeers');
-            transactionSubmitStub = mysandbox.stub(Transaction.prototype, 'submit');
+                gatewayConnectSpy = mysandbox.spy(Gateway.prototype, 'connect');
 
-        });
+                transactionSetEndorsingPeersSpy = mysandbox.spy(Transaction.prototype, 'setEndorsingPeers');
+                transactionSubmitStub = mysandbox.stub(Transaction.prototype, 'submit');
 
-        afterEach(() => {
-            mysandbox.restore();
-        });
-
-        it('should approve a smart contract definition', async () => {
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1'
             });
 
-            addEndorserStub.should.have.been.calledWith(endorser);
-            addCommitterStub.should.have.been.calledWith(committer);
-
-            transactionSetEndoringPeersSpy.should.have.been.calledWith([endorser]);
-            transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
-        });
-
-        it('should approve a smart contract definition with timeout set', async () => {
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1'
-            }, 1234);
-
-            addEndorserStub.should.have.been.calledWith(endorser);
-            addCommitterStub.should.have.been.calledWith(committer);
-
-            const call: sinon.SinonSpyCall = gatewayConnectSpy.getCall(0);
-            call.args[1].eventHandlerOptions.should.deep.equal({
-                commitTimeout: 1234,
-                endorseTimeout: 1234
+            afterEach(() => {
+                mysandbox.restore();
             });
 
-            transactionSetEndoringPeersSpy.should.have.been.calledWith([endorser]);
-            transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
-        });
+            it('should approve a smart contract definition', async () => {
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1'
+                });
 
-        it('should approve a smart contract definition and set initRequired if set', async () => {
+                addEndorserStub.should.have.been.calledWith(endorser);
+                addCommitterStub.should.have.been.calledWith(committer);
 
-            arg.setInitRequired(true);
-
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1',
-                initRequired: true
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorser]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
             });
 
-            addEndorserStub.should.have.been.calledWith(endorser);
-            addCommitterStub.should.have.been.calledWith(committer);
+            it('should approve a smart contract definition with timeout set', async () => {
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1'
+                }, 1234);
 
-            transactionSetEndoringPeersSpy.should.have.been.calledWith([endorser]);
-            transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
-        });
+                addEndorserStub.should.have.been.calledWith(endorser);
+                addCommitterStub.should.have.been.calledWith(committer);
 
-        it('should approve a smart contract definition handle no packageId', async () => {
+                const call: sinon.SinonSpyCall = gatewayConnectSpy.getCall(0);
+                call.args[1].eventHandlerOptions.should.deep.equal({
+                    commitTimeout: 1234,
+                    endorseTimeout: 1234
+                });
 
-            const unavailable = new protos.lifecycle.ChaincodeSource.Unavailable();
-
-            const source = new protos.lifecycle.ChaincodeSource();
-            source.setUnavailable(unavailable);
-
-            arg.setSource(source);
-
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1',
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorser]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
             });
 
-            addEndorserStub.should.have.been.calledWith(endorser);
-            addCommitterStub.should.have.been.calledWith(committer);
+            it('should approve a smart contract definition and set initRequired if set', async () => {
 
-            transactionSetEndoringPeersSpy.should.have.been.calledWith([endorser]);
-            transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+                arg.setInitRequired(true);
+
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    initRequired: true
+                });
+
+                addEndorserStub.should.have.been.calledWith(endorser);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorser]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
+
+            it('should approve a smart contract definition handle no packageId', async () => {
+
+                const unavailable = new protos.lifecycle.ChaincodeSource.Unavailable();
+
+                const source = new protos.lifecycle.ChaincodeSource();
+                source.setUnavailable(unavailable);
+
+                arg.setSource(source);
+
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                });
+
+                addEndorserStub.should.have.been.calledWith(endorser);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorser]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
+
+            it('should handle no peerNames set', async () => {
+                await channel.approveSmartContractDefinition([], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('parameter peers was missing or empty array');
+            });
+
+            it('should handle no orderer set', async () => {
+                // @ts-ignore
+                await channel.approveSmartContractDefinition(['myPeer'], undefined, {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('parameter ordererName is missing');
+            });
+
+            it('should handle no options set', async () => {
+                // @ts-ignore
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', undefined).should.eventually.be.rejectedWith('parameter options is missing');
+            });
+
+            it('should handle no sequence set', async () => {
+                // @ts-ignore
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('missing option sequence');
+            });
+
+            it('should handle no smartContractName set', async () => {
+                // @ts-ignore
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('missing option smartContractName');
+            });
+
+            it('should handle no smartContractVersion set', async () => {
+                // @ts-ignore
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                }).should.eventually.be.rejectedWith('missing option smartContractVersion');
+            });
+
+            it('should handle error from submit', async () => {
+                transactionSubmitStub.rejects({message: 'some error'});
+
+                await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
+                    packageId: 'myPackageId',
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1'
+                }).should.eventually.be.rejectedWith('Could not approve smart contract definition, received error: some error');
+
+                addEndorserStub.should.have.been.calledWith(endorser);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorser]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
         });
 
-        it('should handle no peerNames set', async () => {
-            await channel.approveSmartContractDefinition([], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1',
-            }).should.eventually.be.rejectedWith('parameter peers was missing or empty array');
-        });
+        describe('commitSmartContractDefinition', () => {
 
-        it('should handle no orderer set', async () => {
-            // @ts-ignore
-            await channel.approveSmartContractDefinition(['myPeer'], undefined, {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1',
-            }).should.eventually.be.rejectedWith('parameter ordererName is missing');
-        });
+            let mysandbox: sinon.SinonSandbox;
+            let endorserConnectStub: sinon.SinonStub;
+            let committerConnectStub: sinon.SinonStub;
 
-        it('should handle no options set', async () => {
-            // @ts-ignore
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', undefined).should.eventually.be.rejectedWith('parameter options is missing');
-        });
+            let gatewayConnectSpy: sinon.SinonSpy;
 
-        it('should handle no sequence set', async () => {
-            // @ts-ignore
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1',
-            }).should.eventually.be.rejectedWith('missing option sequence');
-        });
+            let transactionSetEndorsingPeersSpy: sinon.SinonSpy;
+            let transactionSubmitStub: sinon.SinonStub;
 
-        it('should handle no smartContractName set', async () => {
-            // @ts-ignore
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractVersion: '0.0.1',
-            }).should.eventually.be.rejectedWith('missing option smartContractName');
-        });
+            let addEndorserStub: sinon.SinonStub;
+            let addCommitterStub: sinon.SinonStub;
 
-        it('should handle no smartContractVersion set', async () => {
-            // @ts-ignore
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-            }).should.eventually.be.rejectedWith('missing option smartContractVersion');
-        });
+            let endorserOne: Endorser;
+            let endorserTwo: Endorser;
+            let committer: Committer;
+            let arg: any;
 
-        it('should handle error from submit', async () => {
-            transactionSubmitStub.rejects({message: 'some error'});
+            beforeEach(() => {
+                mysandbox = sinon.createSandbox();
 
-            await channel.approveSmartContractDefinition(['myPeer'], 'myOrderer', {
-                packageId: 'myPackageId',
-                sequence: 1,
-                smartContractName: 'myContract',
-                smartContractVersion: '0.0.1'
-            }).should.eventually.be.rejectedWith('Could not approve smart contract definition, received error: some error');
+                endorserOne = fabricClient.getEndorser('myPeer', 'myMSPID');
+                endorserTwo = fabricClient.getEndorser('myPeer2', 'myMSPID2');
+                endorserConnectStub = mysandbox.stub(Endorser.prototype, 'connect').resolves();
 
-            addEndorserStub.should.have.been.calledWith(endorser);
-            addCommitterStub.should.have.been.calledWith(committer);
+                committer = fabricClient.getCommitter('myOrderer', 'osmps');
+                committerConnectStub = mysandbox.stub(committer, 'connect').resolves();
 
-            transactionSetEndoringPeersSpy.should.have.been.calledWith([endorser]);
-            transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+                arg = new protos.lifecycle.ApproveChaincodeDefinitionForMyOrgArgs();
+                arg.setName('myContract');
+                arg.setVersion('0.0.1');
+                arg.setSequence(Long.fromValue(1));
+
+                addEndorserStub = mysandbox.stub(Channel.prototype, 'addEndorser');
+                addCommitterStub = mysandbox.stub(Channel.prototype, 'addCommitter');
+
+                gatewayConnectSpy = mysandbox.spy(Gateway.prototype, 'connect');
+
+                transactionSetEndorsingPeersSpy = mysandbox.spy(Transaction.prototype, 'setEndorsingPeers');
+                transactionSubmitStub = mysandbox.stub(Transaction.prototype, 'submit');
+            });
+
+            afterEach(() => {
+                mysandbox.restore();
+            });
+
+            it('should commit a smart contract definition', async () => {
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1'
+                });
+
+                addEndorserStub.firstCall.should.have.been.calledWith(endorserOne);
+                addEndorserStub.secondCall.should.have.been.calledWith(endorserTwo);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorserOne, endorserTwo]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
+
+            it('should commit a smart contract definition with timeout set', async () => {
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1'
+                }, 1234);
+
+                addEndorserStub.firstCall.should.have.been.calledWith(endorserOne);
+                addEndorserStub.secondCall.should.have.been.calledWith(endorserTwo);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                const call: sinon.SinonSpyCall = gatewayConnectSpy.getCall(0);
+                call.args[1].eventHandlerOptions.should.deep.equal({
+                    commitTimeout: 1234,
+                    endorseTimeout: 1234
+                });
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorserOne, endorserTwo]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
+
+            it('should commit a smart contract definition and set initRequired if set', async () => {
+
+                arg.setInitRequired(true);
+
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                    initRequired: true
+                });
+
+                addEndorserStub.firstCall.should.have.been.calledWith(endorserOne);
+                addEndorserStub.secondCall.should.have.been.calledWith(endorserTwo);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorserOne, endorserTwo]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
+
+            it('should handle no peerNames set', async () => {
+                await channel.commitSmartContractDefinition([], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('parameter peers was missing or empty array');
+            });
+
+            it('should handle no orderer set', async () => {
+                // @ts-ignore
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], undefined, {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('parameter ordererName is missing');
+            });
+
+            it('should handle no options set', async () => {
+                // @ts-ignore
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', undefined).should.eventually.be.rejectedWith('parameter options is missing');
+            });
+
+            it('should handle no sequence set', async () => {
+                // @ts-ignore
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('missing option sequence');
+            });
+
+            it('should handle no smartContractName set', async () => {
+                // @ts-ignore
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractVersion: '0.0.1',
+                }).should.eventually.be.rejectedWith('missing option smartContractName');
+            });
+
+            it('should handle no smartContractVersion set', async () => {
+                // @ts-ignore
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                }).should.eventually.be.rejectedWith('missing option smartContractVersion');
+            });
+
+            it('should handle error from submit', async () => {
+                transactionSubmitStub.rejects({message: 'some error'});
+
+                await channel.commitSmartContractDefinition(['myPeer', 'myPeer2'], 'myOrderer', {
+                    sequence: 1,
+                    smartContractName: 'myContract',
+                    smartContractVersion: '0.0.1'
+                }).should.eventually.be.rejectedWith('Could not commit smart contract definition, received error: some error');
+
+                addEndorserStub.firstCall.should.have.been.calledWith(endorserOne);
+                addEndorserStub.secondCall.should.have.been.calledWith(endorserTwo);
+                addCommitterStub.should.have.been.calledWith(committer);
+
+                transactionSetEndorsingPeersSpy.should.have.been.calledWith([endorserOne, endorserTwo]);
+                transactionSubmitStub.should.have.been.calledWith(arg.toBuffer());
+            });
         });
     });
 });

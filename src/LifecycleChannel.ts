@@ -36,6 +36,9 @@ export class LifecycleChannel {
 
     private fabricClient: Client;
 
+    private APPROVE: string = 'approve';
+    private COMMIT: string = 'commit';
+
     /**
      * internal use only
      * @param fabricClient
@@ -53,7 +56,16 @@ export class LifecycleChannel {
     public async approveSmartContractDefinition(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, requestTimeout?: number): Promise<void> {
         const method = 'approvePackage';
         logger.debug('%s - start', method);
+        return this.submitTransaction(peerNames, ordererName, options, this.APPROVE, requestTimeout);
+    }
 
+    public async commitSmartContractDefinition(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, requestTimeout?: number): Promise<void> {
+        const method = 'commit';
+        logger.debug('%s - start', method);
+        return this.submitTransaction(peerNames, ordererName, options, this.COMMIT, requestTimeout);
+    }
+
+    private async submitTransaction(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, functionName: string, requestTimeout?: number): Promise<void> {
         if (!peerNames || peerNames.length === 0) {
             throw new Error('parameter peers was missing or empty array');
         }
@@ -98,11 +110,11 @@ export class LifecycleChannel {
                 };
             }
 
-            logger.debug('%s - connect to the network', method);
+            logger.debug('%s - connect to the network');
             await gateway.connect(this.fabricClient, gatewayOptions);
             const network: Network = await gateway.getNetwork(this.channelName);
 
-            logger.debug('%s - add the endorsers to the channel', method);
+            logger.debug('%s - add the endorsers to the channel');
             const channel: Channel = network.getChannel();
 
             for (const peerName of peerNames) {
@@ -118,8 +130,28 @@ export class LifecycleChannel {
             await committer.connect();
             channel.addCommitter(committer, true);
 
-            logger.debug('%s - build the approve smart contract argument', method);
-            const arg = new protos.lifecycle.ApproveChaincodeDefinitionForMyOrgArgs();
+            let arg: any;
+            if (functionName === this.APPROVE) {
+
+                logger.debug('%s - build the approve smart contract argument');
+                arg = new protos.lifecycle.ApproveChaincodeDefinitionForMyOrgArgs();
+
+                const source = new protos.lifecycle.ChaincodeSource();
+                if (options.packageId) {
+                    const local = new protos.lifecycle.ChaincodeSource.Local();
+                    local.setPackageId(options.packageId);
+                    source.setLocalPackage(local);
+                } else {
+                    const unavailable = new protos.lifecycle.ChaincodeSource.Unavailable();
+                    source.setUnavailable(unavailable);
+                }
+
+                arg.setSource(source);
+            } else {
+                logger.debug('%s - build the commit smart contract argument');
+                arg = new protos.lifecycle.CommitChaincodeDefinitionArgs();
+            }
+
             arg.setName(options.smartContractName);
             arg.setVersion(options.smartContractVersion);
             arg.setSequence(Long.fromValue(options.sequence));
@@ -144,29 +176,24 @@ export class LifecycleChannel {
             // }
 
 
-            const source = new protos.lifecycle.ChaincodeSource();
-            if (options.packageId) {
-                const local = new protos.lifecycle.ChaincodeSource.Local();
-                local.setPackageId(options.packageId);
-                source.setLocalPackage(local);
-            } else {
-                const unavailable = new protos.lifecycle.ChaincodeSource.Unavailable();
-                source.setUnavailable(unavailable);
-            }
-
-            arg.setSource(source);
-
             const contract: Contract = network.getContract('_lifecycle');
-            const transaction: Transaction = contract.createTransaction('ApproveChaincodeDefinitionForMyOrg');
+
+            let transaction: Transaction;
+
+            if (functionName === this.APPROVE) {
+                transaction = contract.createTransaction('ApproveChaincodeDefinitionForMyOrg');
+            } else {
+                transaction = contract.createTransaction('CommitChaincodeDefinition');
+            }
 
             transaction.setEndorsingPeers(endorsers);
 
             await transaction.submit(arg.toBuffer());
-            logger.debug('%s - submitted successfully', method);
+            logger.debug('%s - submitted successfully');
         } catch (error) {
             logger.error('Problem with the lifecycle approval :: %s', error);
             logger.error(' problem at ::' + error.stack);
-            throw new Error(`Could not approve smart contract definition, received error: ${error.message}`);
+            throw new Error(`Could not ${functionName} smart contract definition, received error: ${error.message}`);
         } finally {
             // this will disconnect the endorsers and committer
             gateway.disconnect();

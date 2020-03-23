@@ -10,7 +10,7 @@ import {CommitHelper} from '../../helpers/CommitHelper';
 import {Helper} from '../../helpers/Helper';
 
 When(/^I commit the contract$/, async function (): Promise<void> {
-    await CommitHelper.commitSmartContract(this.org1Network, [Helper.oldOrg1Peer, Helper.oldOrg2Peer], this.label, '0.0.1', this.packageId);
+    await CommitHelper.commitSmartContract(this.lifecycle, [Helper.org1Peer, Helper.org2Peer], this.label, '0.0.1', this.packageId, this.wallet, this.org1Identity);
 });
 
 Then(/^the smart contract should committed$/, async function (): Promise<void> {

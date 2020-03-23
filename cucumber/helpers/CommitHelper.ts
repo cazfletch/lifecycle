@@ -1,5 +1,6 @@
-import {Lifecycle} from '../../src/old-code/lifecycle';
-import {Network} from 'fabric-network';
+import {Lifecycle as oldLifecycle} from '../../src/old-code/lifecycle';
+import {Network, Wallet} from 'fabric-network';
+import {Lifecycle, LifecycleChannel} from '../../src';
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -9,20 +10,20 @@ import {Network} from 'fabric-network';
 
 export class CommitHelper {
 
-    public static async commitSmartContract(network: Network, peerNames: string[], name: string, version: string, packageId: string): Promise<void> {
-        const approvedChaincode: Lifecycle.ApprovedChaincode = await Lifecycle.newApprovedChaincode({
-            chaincodeName: name,
-            chaincodeVersion: version,
-            label: name,
-            packageId: packageId,
-            sequence: 1
-        });
+    public static async commitSmartContract(lifecycle: Lifecycle, peerNames: string[], name: string, version: string, packageId: string, wallet: Wallet, identity: string): Promise<void> {
 
-        await approvedChaincode.commit({network: network, peerNames: peerNames});
+        const channel: LifecycleChannel = lifecycle.getChannel('mychannel', wallet, identity);
+
+        await channel.commitSmartContractDefinition(peerNames, 'orderer.example.com', {
+            smartContractName: name,
+            smartContractVersion: version,
+            sequence: 1,
+            packageId: packageId
+        });
     }
 
     public static async getCommittedSmartContracts(network: Network, peerName: string, name: string, version: string): Promise<string[]> {
-        const result: Lifecycle.DefinedChaincodeAttributes[] = await Lifecycle.queryDefinedChaincodes({
+        const result: oldLifecycle.DefinedChaincodeAttributes[] = await oldLifecycle.queryDefinedChaincodes({
             network: network,
             peerName: peerName
         });
