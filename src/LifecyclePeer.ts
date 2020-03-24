@@ -1,6 +1,5 @@
 import {
     Client,
-    Committer,
     Endorsement,
     Endorser,
     Endpoint,
@@ -11,7 +10,7 @@ import {
 } from 'fabric-common';
 import * as protos from 'fabric-protos';
 import {Identity, Wallet} from 'fabric-network';
-import {format} from 'util';
+import {LifecycleCommon} from './LifecycleCommon';
 
 const logger = Utils.getLogger('packager');
 
@@ -104,7 +103,7 @@ export class LifecyclePeer {
 
             const responses: ProposalResponse = await this.sendRequest(buildRequest, '_lifecycle', requestTimeout);
 
-            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
 
             const installChaincodeResult = protos.lifecycle.InstallChaincodeResult.decode(payloads[0]);
 
@@ -142,7 +141,7 @@ export class LifecyclePeer {
 
             const responses: ProposalResponse = await this.sendRequest(buildRequest, '_lifecycle', requestTimeout);
 
-            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
 
             // only sent to one peer so should only be one payload
             const queryAllResults = protos.lifecycle.QueryInstalledChaincodesResult.decode(payloads[0]);
@@ -195,7 +194,7 @@ export class LifecyclePeer {
 
             const responses: ProposalResponse = await this.sendRequest(buildRequest, '_lifecycle', requestTimeout);
 
-            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
 
             // only sent to one peer so can only be one payload
             const results = protos.lifecycle.GetInstalledChaincodePackageResult.decode(payloads[0]);
@@ -232,7 +231,7 @@ export class LifecyclePeer {
 
             const responses = await this.sendRequest(buildRequest, 'cscc', requestTimeout);
 
-            const payloads: Buffer[] = await LifecyclePeer.processResponse(responses);
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
 
             // only sent to one peer so only one payload
             const queryTrans = protos.protos.ChannelQueryResponse.decode(payloads[0]);
@@ -311,35 +310,5 @@ export class LifecyclePeer {
         } finally {
             endorser.disconnect();
         }
-    }
-
-    private static async processResponse(responses: ProposalResponse): Promise<Buffer[]> {
-        const payloads: Buffer[] = [];
-
-        if (responses.errors && responses.errors.length > 0) {
-            for (const error of responses.errors) {
-                logger.error('Problem with response ::' + error);
-                throw error;
-            }
-        } else if (responses.responses && responses.responses.length > 0) {
-            logger.debug('checking the query response');
-            for (const response of responses.responses) {
-                if (response.response && response.response.status) {
-                    if (response.response.status === 200) {
-                        logger.debug('peer response %j', response);
-                        payloads.push(response.response.payload);
-
-                    } else {
-                        throw new Error(format('failed with status:%s ::%s', response.response.status, response.response.message));
-                    }
-                } else {
-                    throw new Error('failure in response');
-                }
-            }
-        } else {
-            throw new Error('No response returned');
-        }
-
-        return payloads;
     }
 }

@@ -23,11 +23,11 @@ When(/^I approve the smart contract$/, async function (): Promise<void> {
 });
 
 Then(/^the smart contract should be approved$/, async function (): Promise<void> {
-    await ApproveHelper.checkCommitReadiness(this.org1Network, Helper.oldOrg1Peer, this.label, '0.0.1').should.eventually.be.true;
+    await ApproveHelper.checkCommitReadiness(this.lifecycle, Helper.org1Peer, this.label, '0.0.1', this.wallet, this.org1Identity).should.eventually.be.true;
 });
 
 Given(/^the contract is approved$/, async function (): Promise<void> {
-    const result: boolean = await ApproveHelper.checkCommitReadiness(this.org1Network, Helper.oldOrg1Peer, this.label, '0.0.1');
+    const result: boolean = await ApproveHelper.checkCommitReadiness(this.lifecycle, Helper.org1Peer, this.label, '0.0.1', this.wallet, this.org1Identity);
 
     if (!result) {
         await ApproveHelper.approveSmartContract(this.lifecycle, Helper.org1Peer, this.label, '0.0.1', this.packageId, this.wallet, this.org1Identity);

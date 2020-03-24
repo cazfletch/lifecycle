@@ -17,8 +17,7 @@ export class CommitHelper {
         await channel.commitSmartContractDefinition(peerNames, 'orderer.example.com', {
             smartContractName: name,
             smartContractVersion: version,
-            sequence: 1,
-            packageId: packageId
+            sequence: 1
         });
     }
 
