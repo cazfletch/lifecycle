@@ -29,4 +29,10 @@ export class CommitHelper {
             return data.smartContractName;
         });
     }
+
+    public static async getCommittedSmartContract(lifecycle: Lifecycle, peerName: string, name: string, wallet: Wallet, identity: string): Promise<DefinedSmartContract> {
+        const channel: LifecycleChannel = lifecycle.getChannel('mychannel', wallet, identity);
+
+        return await channel.getCommittedSmartContract(peerName, name);
+    }
 }
