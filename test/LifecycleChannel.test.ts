@@ -841,5 +841,144 @@ describe('LifecycleChannel', () => {
                 await channel.getAllCommittedSmartContracts('myPeer').should.eventually.be.rejectedWith('Could not get smart contract definitions, received error: some error');
             });
         });
+
+        describe('getCommittedSmartContract', () => {
+
+            let mysandbox: sinon.SinonSandbox;
+            let endorserConnectStub: sinon.SinonStub;
+
+            let endorsementBuildSpy: sinon.SinonSpy;
+            let endorsementSignSpy: sinon.SinonSpy;
+            let endorsementSendStub: sinon.SinonStub;
+
+            let endorser: Endorser;
+            let arg: any;
+            let buildRequest: any;
+
+            beforeEach(() => {
+                mysandbox = sinon.createSandbox();
+
+                arg = new protos.lifecycle.QueryChaincodeDefinitionArgs();
+
+                arg.setName('myContract');
+
+                buildRequest = {
+                    fcn: 'QueryChaincodeDefinition',
+                    args: [arg.toBuffer()]
+                };
+
+                endorser = fabricClient.getEndorser('myPeer', 'myMSPID');
+                endorserConnectStub = mysandbox.stub(endorser, 'connect').resolves();
+
+                endorsementBuildSpy = mysandbox.spy(Endorsement.prototype, 'build');
+                endorsementSignSpy = mysandbox.spy(Endorsement.prototype, 'sign');
+                endorsementSendStub = mysandbox.stub(Endorsement.prototype, 'send');
+                endorsementSendStub.resolves();
+            });
+
+            afterEach(() => {
+                mysandbox.restore();
+            });
+
+            it('should get the committed smart contract', async () => {
+                const encodedResult = protos.lifecycle.QueryChaincodeDefinitionResult.encode({
+                    sequence: 1,
+                    version: '0.0.1',
+                    init_required: false,
+                    endorsement_plugin: 'escc',
+                    validation_plugin: 'vscc',
+                    validation_parameter: Buffer.from(JSON.stringify({})),
+                    collections: {},
+                    approvals: {'Org1MSP': true, 'Org2MSP': true}
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: encodedResult
+                        }
+                    }]
+                });
+
+                const result: DefinedSmartContract = await channel.getCommittedSmartContract('myPeer', 'myContract');
+
+                result.smartContractName.should.equal('myContract');
+                result.smartContractVersion.should.equal('0.0.1');
+                result.sequence.should.equal(1);
+                // @ts-ignore
+                result.initRequired.should.equal(false);
+
+                result.approvals!.size.should.equal(2);
+                result.approvals!.get('Org1MSP')!.should.equal(true);
+                result.approvals!.get('Org2MSP')!.should.equal(true);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser]
+                });
+            });
+
+            it('should get all the committed smart contracts with timeout', async () => {
+
+                const encodedResult = protos.lifecycle.QueryChaincodeDefinitionResult.encode({
+                    sequence: 1,
+                    version: '0.0.1',
+                    init_required: false,
+                    endorsement_plugin: 'escc',
+                    validation_plugin: 'vscc',
+                    validation_parameter: Buffer.from(JSON.stringify({})),
+                    collections: {},
+                    approvals: {'Org1MSP': true, 'Org2MSP': true}
+                });
+
+                endorsementSendStub.resolves({
+                    responses: [{
+                        response: {
+                            status: 200,
+                            payload: encodedResult
+                        }
+                    }]
+                });
+
+                const result: DefinedSmartContract = await channel.getCommittedSmartContract('myPeer', 'myContract', 1234);
+
+                result.smartContractName.should.equal('myContract');
+                result.smartContractVersion.should.equal('0.0.1');
+                result.sequence.should.equal(1);
+                // @ts-ignore
+                result.initRequired.should.equal(false);
+
+                result.approvals!.size.should.equal(2);
+                result.approvals!.get('Org1MSP')!.should.equal(true);
+                result.approvals!.get('Org2MSP')!.should.equal(true);
+
+                endorserConnectStub.should.have.been.called;
+                endorsementBuildSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext), buildRequest);
+                endorsementSignSpy.should.have.been.calledWith(sinon.match.instanceOf(IdentityContext));
+                endorsementSendStub.should.have.been.calledWith({
+                    targets: [endorser],
+                    requestTimeout: 1234
+                });
+            });
+
+            it('should handle no peerName', async () => {
+                // @ts-ignore
+                await channel.getCommittedSmartContract(undefined).should.eventually.be.rejectedWith('parameter peerName is missing');
+            });
+
+            it('should handle no smartContractName', async () => {
+                // @ts-ignore
+                await channel.getCommittedSmartContract('myPeer', undefined).should.eventually.be.rejectedWith('parameter smartContractName is missing');
+            });
+
+            it('should handle error from send', async () => {
+                endorsementSendStub.rejects({message: 'some error'});
+
+                await channel.getCommittedSmartContract('myPeer', 'mySmartContract').should.eventually.be.rejectedWith('Could not get smart contract definition, received error: some error');
+            });
+        });
     });
 });

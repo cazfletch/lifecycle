@@ -73,6 +73,7 @@ export class Lifecycle {
      * @param name string, the name of the peer that was added
      * @param wallet Wallet, the wallet containing the identity to be used to interact with the peer
      * @param identity string, the name of the identity to be used to interact with the peer
+     * @returns LifecyclePeer, an instance of a LifecyclePeer
      */
     public getPeer(name: string, wallet: Wallet, identity: string): LifecyclePeer {
         if (!name) {
@@ -99,6 +100,13 @@ export class Lifecycle {
         return peer;
     }
 
+    /**
+     * Get a channel
+     * @param channelName string, the name of the channel
+     * @param wallet Wallet, the wallet to use with the channel
+     * @param identity string, the identity to use with the channel
+     * @returns LifecycleChannel, an instance of a LifecycleChannel
+     */
     public getChannel(channelName: string, wallet: Wallet, identity: string): LifecycleChannel {
         if (!channelName) {
             throw new Error('parameter channelName is missing');
@@ -115,6 +123,10 @@ export class Lifecycle {
         return new LifecycleChannel(this.fabricClient, channelName, wallet, identity);
     }
 
+    /**
+     * Add an orderer
+     * @param options OrdererOptions, the details about the orderer that is to be used
+     */
     public addOrderer(options: OrdererOptions): void {
         if (!options) {
             throw new Error('parameter options is missing');

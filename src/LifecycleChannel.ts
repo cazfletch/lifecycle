@@ -38,7 +38,9 @@ export interface DefinedSmartContract {
     initRequired?: boolean;
     endorsementPlugin?: string;
     validationPlugin?: string;
+    approvals?: Map<string, boolean>;
 }
+
 
 export class LifecycleChannel {
 
@@ -65,20 +67,41 @@ export class LifecycleChannel {
         this.identity = identity;
     }
 
+    /**
+     * Approve a smart contract definition
+     * @param peerNames string[], the names of the peer to endorse the transaction
+     * @param ordererName string, the orderer to send the request to
+     * @param options SmartContractDefinitionOptions, the details of the definition
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     */
     public async approveSmartContractDefinition(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, requestTimeout?: number): Promise<void> {
         const method = 'approvePackage';
         logger.debug('%s - start', method);
         return this.submitTransaction(peerNames, ordererName, options, this.APPROVE, requestTimeout);
     }
 
+    /**
+     * Commit a smart contract definition
+     * @param peerNames string[], the names of the peer to endorse the transaction
+     * @param ordererName string, the orderer to send the request to
+     * @param options SmartContractDefinitionOptions, the details of the definition
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     */
     public async commitSmartContractDefinition(peerNames: string[], ordererName: string, options: SmartContractDefinitionOptions, requestTimeout?: number): Promise<void> {
         const method = 'commit';
         logger.debug('%s - start', method);
         return this.submitTransaction(peerNames, ordererName, options, this.COMMIT, requestTimeout);
     }
 
+    /**
+     * Get the commit readiness of a smart contract definition
+     * @param peerName string, the name of the peer to endorse the transaction
+     * @param options SmartContractDefinitionOptions, the details of the definition
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     * @return Promise<Map<string, boolean>>, the status of if an organisation has approved the definition or not
+     */
     public async getCommitReadiness(peerName: string, options: SmartContractDefinitionOptions, requestTimeout?: number): Promise<Map<string, boolean>> {
-        const method = 'CheckCommitReadinessResult';
+        const method = 'getCommitReadiness';
         logger.debug('%s - start', method);
 
         if (!peerName) {
@@ -154,8 +177,14 @@ export class LifecycleChannel {
         }
     }
 
+    /**
+     * Get a list of all the committed smart contracts
+     * @param peerName string, the name of the peer to endorse the transaction
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     * @return DefinedSmartContract[], a list of the defined smart contracts
+     */
     public async getAllCommittedSmartContracts(peerName: string, requestTimeout?: number): Promise<DefinedSmartContract[]> {
-        const method = 'queryDefinedChaincodes';
+        const method = 'getAllCommittedSmartContracts';
         logger.debug('%s - start', method);
 
         if (!peerName) {
@@ -165,7 +194,7 @@ export class LifecycleChannel {
         const definitions: DefinedSmartContract[] = [];
 
         try {
-            logger.debug('%s - build the get defined chaincodes request', method);
+            logger.debug('%s - build the get defined smart contract request', method);
             const arg = new protos.lifecycle.QueryChaincodeDefinitionsArgs();
 
             const buildRequest = {
@@ -200,6 +229,73 @@ export class LifecycleChannel {
             logger.error('Problem with request :: %s', error);
             logger.error(' problem at ::' + error.stack);
             throw new Error(`Could not get smart contract definitions, received error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get the details of a committed smart contract
+     * @param peerName string, the name of the peer to endorse the transaction
+     * @param smartContractName string, the name of the comitted smart contract to get the details for
+     * @param requestTimeout number, [optional] the timeout used when performing the install operation
+     * @return DefinedSmartContract, the defined smart contract
+     */
+    public async getCommittedSmartContract(peerName: string, smartContractName: string, requestTimeout?: number): Promise<DefinedSmartContract> {
+        const method = 'getCommittedSmartContract';
+        logger.debug('%s - start', method);
+
+        if (!peerName) {
+            throw new Error('parameter peerName is missing');
+        }
+
+        if (!smartContractName) {
+            throw new Error('parameter smartContractName is missing');
+        }
+
+        let defined: DefinedSmartContract;
+
+        try {
+            logger.debug('%s - build the get defined smart contract request', method);
+            const arg = new protos.lifecycle.QueryChaincodeDefinitionArgs();
+            arg.setName(smartContractName);
+
+            const buildRequest = {
+                fcn: 'QueryChaincodeDefinition',
+                args: [arg.toBuffer()]
+            };
+
+            const responses: ProposalResponse = await this.evaluateTransaction(peerName, buildRequest, requestTimeout);
+
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
+
+            const results = protos.lifecycle.QueryChaincodeDefinitionResult.decode(payloads[0]);
+            defined = {
+                smartContractName: smartContractName,
+                sequence: results.getSequence().toNumber(),
+                smartContractVersion: results.getVersion(),
+                initRequired: results.getInitRequired(),
+                endorsementPlugin: results.getEndorsementPlugin(),
+                validationPlugin: results.getValidationPlugin(),
+                endorsementPolicy: results.getValidationParameter(),
+                collectionConfig: results.getCollections().toBuffer()
+            };
+
+            const approvalMap = results.getApprovals();
+            const keys = approvalMap.keys();
+            let key: any;
+
+            defined.approvals = new Map<string, boolean>();
+            while ((key = keys.next()).done !== true) {
+                const isApproved = approvalMap.get(key.value);
+                defined.approvals.set(key.value, isApproved);
+            }
+
+            logger.debug('%s - end', method);
+            return defined;
+
+        } catch (error) {
+            logger.error('Problem with the request :: %s', error);
+            logger.error(' problem at ::' + error.stack);
+            throw new Error(`Could not get smart contract definition, received error: ${error.message}`);
         }
     }
 
