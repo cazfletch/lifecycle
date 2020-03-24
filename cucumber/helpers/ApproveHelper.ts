@@ -1,5 +1,4 @@
-import {Lifecycle as oldLifecycle} from '../../src/old-code/lifecycle';
-import {Network, Wallet} from 'fabric-network';
+import {Wallet} from 'fabric-network';
 import {Lifecycle, LifecycleChannel} from '../../src';
 
 /**

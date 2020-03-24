@@ -29,6 +29,17 @@ export interface SmartContractDefinitionOptions {
     initRequired?: boolean;
 }
 
+export interface DefinedSmartContract {
+    smartContractName: string;
+    smartContractVersion: string;
+    sequence: number;
+    endorsementPolicy?: string | object | Buffer;
+    collectionConfig?: object | Buffer;
+    initRequired?: boolean;
+    endorsementPlugin?: string;
+    validationPlugin?: string;
+}
+
 export class LifecycleChannel {
 
     private channelName: string;
@@ -88,9 +99,6 @@ export class LifecycleChannel {
 
         const commitReadiness: Map<string, boolean> = new Map();
 
-        const gateway: Gateway = new Gateway();
-        const endorser: Endorser = this.fabricClient.getEndorser(peerName);
-
         try {
             logger.debug('%s - build the get defined smart contract request', method);
             const arg = new protos.lifecycle.CheckCommitReadinessArgs();
@@ -124,36 +132,7 @@ export class LifecycleChannel {
                 args: [arg.toBuffer()]
             };
 
-            const gatewayOptions: GatewayOptions = {
-                wallet: this.wallet,
-                identity: this.identity,
-                discovery: {enabled: false}
-            };
-
-            // @ts-ignore
-            await endorser.connect();
-
-            logger.debug('%s - connect to the network');
-            await gateway.connect(this.fabricClient, gatewayOptions);
-            const network: Network = await gateway.getNetwork(this.channelName);
-
-            //  we are going to talk to lifecycle which is really just a smart contract
-            const endorsement = network.getChannel().newEndorsement('_lifecycle');
-            endorsement.build(network.getGateway().identityContext, buildRequest);
-
-            logger.debug('%s - sign the request', method);
-            endorsement.sign(network.getGateway().identityContext);
-
-            const endorseRequest: any = {
-                targets: [endorser]
-            };
-
-            if (requestTimeout) {
-                endorseRequest.requestTimeout = requestTimeout;
-            }
-
-            logger.debug('%s - send the query request', method);
-            const responses: ProposalResponse = await endorsement.send(endorseRequest);
+            const responses: ProposalResponse = await this.evaluateTransaction(peerName, buildRequest, requestTimeout);
 
             const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
 
@@ -172,9 +151,55 @@ export class LifecycleChannel {
             logger.error('Problem with the request :: %s', error);
             logger.error(' problem at ::' + error.stack);
             throw new Error(`Could not get commit readiness, received error: ${error.message}`);
-        } finally {
-            gateway.disconnect();
-            endorser.disconnect();
+        }
+    }
+
+    public async getAllCommittedSmartContracts(peerName: string, requestTimeout?: number): Promise<DefinedSmartContract[]> {
+        const method = 'queryDefinedChaincodes';
+        logger.debug('%s - start', method);
+
+        if (!peerName) {
+            throw new Error('parameter peerName is missing');
+        }
+
+        const definitions: DefinedSmartContract[] = [];
+
+        try {
+            logger.debug('%s - build the get defined chaincodes request', method);
+            const arg = new protos.lifecycle.QueryChaincodeDefinitionsArgs();
+
+            const buildRequest = {
+                fcn: 'QueryChaincodeDefinitions',
+                args: [arg.toBuffer()]
+            };
+
+            const responses: ProposalResponse = await this.evaluateTransaction(peerName, buildRequest, requestTimeout);
+
+            const payloads: Buffer[] = await LifecycleCommon.processResponse(responses);
+
+            // only sent the request to one peer so only expect one response
+            const results = protos.lifecycle.QueryChaincodeDefinitionsResult.decode(payloads[0]);
+            const smartContractDefinitions = results.getChaincodeDefinitions();
+            for (const smartContractDefinition of smartContractDefinitions) {
+                const defined: DefinedSmartContract = {
+                    smartContractName: smartContractDefinition.getName(),
+                    sequence: smartContractDefinition.getSequence().toNumber(),
+                    smartContractVersion: smartContractDefinition.getVersion(),
+                    initRequired: smartContractDefinition.getInitRequired(),
+                    endorsementPlugin: smartContractDefinition.getEndorsementPlugin(),
+                    validationPlugin: smartContractDefinition.getValidationPlugin(),
+                    endorsementPolicy: smartContractDefinition.getValidationParameter(),
+                    collectionConfig: smartContractDefinition.getCollections().toBuffer(),
+                };
+                definitions.push(defined);
+            }
+
+            logger.debug('%s - end', method);
+            return definitions;
+        } catch (error) {
+            logger.error('Problem with request :: %s', error);
+            logger.error(' problem at ::' + error.stack);
+            throw new Error(`Could not get smart contract definitions, received error: ${error.message}`);
         }
     }
 
@@ -311,6 +336,48 @@ export class LifecycleChannel {
         } finally {
             // this will disconnect the endorsers and committer
             gateway.disconnect();
+        }
+    }
+
+    private async evaluateTransaction(peerName: string, buildRequest: any, requestTimeout?: number): Promise<ProposalResponse> {
+
+        const gateway: Gateway = new Gateway();
+        const endorser: Endorser = this.fabricClient.getEndorser(peerName);
+
+        try {
+            const gatewayOptions: GatewayOptions = {
+                wallet: this.wallet,
+                identity: this.identity,
+                discovery: {enabled: false}
+            };
+
+            // @ts-ignore
+            await endorser.connect();
+
+            logger.debug('%s - connect to the network');
+            await gateway.connect(this.fabricClient, gatewayOptions);
+            const network: Network = await gateway.getNetwork(this.channelName);
+
+            //  we are going to talk to lifecycle which is really just a smart contract
+            const endorsement = network.getChannel().newEndorsement('_lifecycle');
+            endorsement.build(network.getGateway().identityContext, buildRequest);
+
+            logger.debug('%s - sign the request');
+            endorsement.sign(network.getGateway().identityContext);
+
+            const endorseRequest: any = {
+                targets: [endorser]
+            };
+
+            if (requestTimeout) {
+                endorseRequest.requestTimeout = requestTimeout;
+            }
+
+            logger.debug('%s - send the query request');
+            return endorsement.send(endorseRequest);
+        } finally {
+            gateway.disconnect();
+            endorser.disconnect();
         }
     }
 }

@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import {Helper} from './Helper';
-import {Gateway, Wallet, Wallets, X509Identity} from 'fabric-network';
+import {Wallet, Wallets, X509Identity} from 'fabric-network';
 import {Lifecycle, LifecyclePeer, LifecyclePeerOptions} from '../../src';
 
 /**
@@ -12,56 +12,11 @@ import {Lifecycle, LifecyclePeer, LifecyclePeerOptions} from '../../src';
 
 export class NetworkHelper {
 
-    public static async connectToGateway(orgNumber: number): Promise<Gateway> {
-        const peerOrgPath: string = path.join(Helper.NETWORK_DIR, 'organizations', 'peerOrganizations');
+    public static async setupLifecycle(): Promise<{lifecycle: Lifecycle, wallet: Wallet}> {
 
-        const peerOrgNumberPath = path.join(peerOrgPath, `org${orgNumber}.example.com`);
-        const org1CCPPath: string = path.join(peerOrgNumberPath, `connection-org${orgNumber}.json`);
+        await this.importIdentity(1);
+        const wallet = await this.importIdentity(2);
 
-        const org1CCP: any = await fs.readJSON(org1CCPPath);
-
-        const wallet: Wallet = await NetworkHelper.importIdentity(orgNumber, peerOrgNumberPath);
-
-        // Set connection options; identity and wallet
-        const connectionOptions = {
-            identity: `peerAdminOrg${orgNumber}`,
-            wallet: wallet,
-            discovery: {enabled: true, asLocalhost: true}
-        };
-
-        const gateway: Gateway = new Gateway();
-
-        await gateway.connect(org1CCP, connectionOptions);
-
-        return gateway;
-    }
-
-    private static async importIdentity(orgNumber: number, peerOrgPath: string): Promise<Wallet> {
-
-        const peerOrg1Cert: string = await fs.readFile(path.join(peerOrgPath, 'users', `Admin@org${orgNumber}.example.com`, 'msp', 'signcerts', 'cert.pem'), 'utf8');
-
-        const peerOrgKeyDir: string = path.join(peerOrgPath, 'users', `Admin@org${orgNumber}.example.com`, 'msp', 'keystore');
-        const fileList: string[] = await fs.readdir(peerOrgKeyDir);
-        const peerOrg1Key: string = await fs.readFile(path.join(peerOrgKeyDir, fileList[0]), 'utf8');
-
-        const walletPath: string = path.join(Helper.TMP_DIR, 'wallet');
-
-        const wallet: Wallet = await Wallets.newFileSystemWallet(walletPath);
-
-        const peerOrg1Identity: X509Identity = {
-            credentials: {
-                certificate: peerOrg1Cert,
-                privateKey: peerOrg1Key,
-            },
-            mspId: `Org${orgNumber}MSP`,
-            type: 'X.509',
-        };
-
-        await wallet.put(`peerAdminOrg${orgNumber}`, peerOrg1Identity);
-        return wallet;
-    }
-
-    public static async setupLifecycle(): Promise<Lifecycle> {
         const lifecycle = new Lifecycle();
 
         const org1PeerDetails = await this.getPeerDetails(1);
@@ -82,13 +37,41 @@ export class NetworkHelper {
             sslTargetNameOverride: 'orderer.example.com'
         });
 
-        return lifecycle
+        return {lifecycle: lifecycle, wallet: wallet};
     }
 
     public static getListOfChannels(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<string[]> {
         const peer: LifecyclePeer = lifecycle.getPeer(peerName, wallet, identity);
 
         return peer.getAllChannelNames();
+    }
+
+    private static async importIdentity(orgNumber: number): Promise<Wallet> {
+        const peerOrgPath: string = path.join(Helper.NETWORK_DIR, 'organizations', 'peerOrganizations');
+
+        const peerOrgNumberPath = path.join(peerOrgPath, `org${orgNumber}.example.com`);
+
+        const peerOrgCert: string = await fs.readFile(path.join(peerOrgNumberPath, 'users', `Admin@org${orgNumber}.example.com`, 'msp', 'signcerts', 'cert.pem'), 'utf8');
+
+        const peerOrgKeyDir: string = path.join(peerOrgNumberPath, 'users', `Admin@org${orgNumber}.example.com`, 'msp', 'keystore');
+        const fileList: string[] = await fs.readdir(peerOrgKeyDir);
+        const peerOrgKey: string = await fs.readFile(path.join(peerOrgKeyDir, fileList[0]), 'utf8');
+
+        const walletPath: string = path.join(Helper.TMP_DIR, 'wallet');
+
+        const wallet: Wallet = await Wallets.newFileSystemWallet(walletPath);
+
+        const peerOrgIdentity: X509Identity = {
+            credentials: {
+                certificate: peerOrgCert,
+                privateKey: peerOrgKey,
+            },
+            mspId: `Org${orgNumber}MSP`,
+            type: 'X.509',
+        };
+
+        await wallet.put(`peerAdminOrg${orgNumber}`, peerOrgIdentity);
+        return wallet;
     }
 
     private static async getPeerDetails(orgNumber: number): Promise<LifecyclePeerOptions> {
@@ -108,7 +91,5 @@ export class NetworkHelper {
             mspid: `Org${orgNumber}MSP`,
             sslTargetNameOverride: peerInfo.grpcOptions['ssl-target-name-override']
         };
-
-
     }
 }
