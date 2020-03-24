@@ -14,7 +14,7 @@ When(/^I commit the contract$/, async function (): Promise<void> {
 });
 
 Then(/^the smart contract should committed$/, async function (): Promise<void> {
-    const result: string[] = await CommitHelper.getCommittedSmartContracts(this.org1Network, Helper.oldOrg1Peer, this.label, '0.0.1');
+    const result: string[] = await CommitHelper.getCommittedSmartContracts(this.lifecycle, Helper.org1Peer, this.wallet, this.org1Identity);
 
     result.should.include(this.label);
 });

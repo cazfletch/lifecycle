@@ -1,6 +1,5 @@
-import {Lifecycle as oldLifecycle} from '../../src/old-code/lifecycle';
-import {Network, Wallet} from 'fabric-network';
-import {Lifecycle, LifecycleChannel} from '../../src';
+import {Wallet} from 'fabric-network';
+import {DefinedSmartContract, Lifecycle, LifecycleChannel} from '../../src';
 
 /**
  * Copyright 2020 IBM All Rights Reserved.
@@ -21,14 +20,13 @@ export class CommitHelper {
         });
     }
 
-    public static async getCommittedSmartContracts(network: Network, peerName: string, name: string, version: string): Promise<string[]> {
-        const result: oldLifecycle.DefinedChaincodeAttributes[] = await oldLifecycle.queryDefinedChaincodes({
-            network: network,
-            peerName: peerName
-        });
+    public static async getCommittedSmartContracts(lifecycle: Lifecycle, peerName: string, wallet: Wallet, identity: string): Promise<string[]> {
+        const channel: LifecycleChannel = lifecycle.getChannel('mychannel', wallet, identity);
+
+        const result: DefinedSmartContract[] = await channel.getAllCommittedSmartContracts(peerName);
 
         return result.map(data => {
-            return data.chaincodeName;
+            return data.smartContractName;
         });
     }
 }
